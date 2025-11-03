@@ -1,0 +1,53 @@
+import json
+from src.utils.settings import llm
+from src.utils.data_handler import get_vuln_by_id
+from src.utils.cve_client import get_cve_data, get_csaf_data
+
+
+def resolve_vuln_node(state):
+    """Fetch vuln data from CSV, check for RHSA ID, and fetch CVE/CSAF data if found."""
+    vuln_id = state.get("intent_data", "").strip()
+    
+    if not vuln_id:
+        return {"output": "Could not extract Vuln ID from message."}
+    
+    vuln_data = get_vuln_by_id(vuln_id)
+    if not vuln_data:
+        return {"output": f"Vulnerability ID {vuln_id} not found."}
+    
+    # Check for RHSA ID in vuln name
+    vuln_name = vuln_data.get("Vuln Name", "")
+    prompt = (
+        "Check if the vulnerability name contains a Red Hat Security Advisory (RHSA) ID.\n"
+        "RHSA IDs follow the pattern: RHSA-YYYY:NNNNN (e.g., RHSA-2025:10618)\n"
+        "If found, extract it exactly. Reply with ONLY valid JSON: {\"has_rhsa\": true/false, \"rhsa_id\": \"<ID or empty>\"}\n"
+        f"Vulnerability Name: '''{vuln_name}'''"
+    )
+    
+    try:
+        resp = llm.invoke(prompt).content.strip()
+        if "```" in resp:
+            resp = resp.split("```")[1].replace("json", "").strip()
+        result = json.loads(resp)
+        rhsa_id = result.get("rhsa_id", "").strip() if result.get("has_rhsa") else ""
+    except Exception:
+        rhsa_id = ""
+    
+    if not rhsa_id:
+        return {"vuln_data": vuln_data, "output": "No RHSA ID found. Cannot patch the vulnerability. Wait for the next version of the solution."}
+    
+    # Fetch CVE and CSAF data
+    try:
+        cve_data = get_cve_data(rhsa_id)
+        csaf_data = get_csaf_data(rhsa_id)
+    except Exception as e:
+        return {"vuln_data": vuln_data, "output": f"Error fetching CVE/CSAF data for {rhsa_id}: {str(e)}"}
+    
+    return {
+        "vuln_data": vuln_data,
+        "rhsa_id": rhsa_id,
+        "cve_data": cve_data,
+        "csaf_data": csaf_data,
+        "output": f"Found RHSA ID: {rhsa_id}. Fetched CVE and CSAF data."
+    }
+

@@ -1,10 +1,12 @@
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 from src.tools.ssh_client import ssh_node
+from src.tools.jira_tools import jira_update_node
 from src.utils.settings import llm
-from src.utils.data_handler import sample_vulns, get_vuln_by_id
+from src.utils.data_handler import sample_vulns
 from src.state import GraphState
 from src.agents.intent_classifier import classify_intent
+from src.agents.vuln_resolver import resolve_vuln_node
 
 load_dotenv()
 
@@ -22,21 +24,6 @@ def list_vulns_node(state):
     return {"output": output}
 
 
-def resolve_vuln_node(state):
-    """Fetch vuln data from CSV and store in state."""
-    vuln_id = state.get("intent_data", "").strip()
-    
-    if not vuln_id:
-        return {"output": "Could not extract Vuln ID from message."}
-    
-    vuln_data = get_vuln_by_id(vuln_id)
-    
-    if not vuln_data:
-        return {"output": f"Vulnerability ID {vuln_id} not found."}
-    
-    return {"vuln_data": vuln_data, "output": f"Found vulnerability ID {vuln_id}: {vuln_data.get('Vuln Name', 'N/A')}"}
-
-
 def llm_node(state):
     prompt = f"User wants to: {state['user_input']}. Decide what Linux command should be run and return only the command."
     command = llm.invoke(prompt).content.strip()
@@ -47,6 +34,7 @@ graph = StateGraph(GraphState)
 graph.add_node("classify", classify_intent_node)
 graph.add_node("list_vulns", list_vulns_node)
 graph.add_node("resolve_vuln", resolve_vuln_node)
+graph.add_node("jira_update", jira_update_node)
 graph.add_node("llm", llm_node)
 graph.add_node("ssh", ssh_node)
 
@@ -57,9 +45,10 @@ graph.add_conditional_edges("classify",
                              "RESOLVE_VULN": "resolve_vuln",
                              "OTHER": "llm"
                             })
+graph.add_edge("resolve_vuln", "jira_update")
+graph.add_edge("jira_update", END)
 graph.add_edge("llm", "ssh")
 graph.add_edge("list_vulns", END)
-graph.add_edge("resolve_vuln", END)
 graph.add_edge("ssh", END)
 
 app = graph.compile()

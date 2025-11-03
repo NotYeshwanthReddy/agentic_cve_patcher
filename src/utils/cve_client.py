@@ -1,4 +1,3 @@
-import sys
 import json
 import requests
 from datetime import datetime, timedelta
@@ -8,21 +7,17 @@ PROXIES = {}
 
 
 def get_data(query):
-
     full_query = REDHAT_API_HOST + query
     r = requests.get(full_query, proxies=PROXIES)
 
     if r.status_code != 200:
-        print('ERROR: Invalid request; returned {} for the following '
-              'query:\n{}'.format(r.status_code, full_query))
-        sys.exit(1)
+        raise Exception(f'Invalid request; returned {r.status_code} for query: {full_query}')
 
-    if not r.json():
-        print('No data returned with the following query:')
-        print(full_query)
-        sys.exit(0)
+    data = r.json()
+    if not data:
+        raise Exception(f'No data returned for query: {full_query}')
 
-    return r.json()
+    return data
 
 
 def get_cve_data(RHSA_id:str) -> dict:
@@ -63,9 +58,11 @@ def get_csaf_data(RHSA_id:str) -> dict:
         dict: Parsed JSON data from the API response.
     """
     endpoint = f'{REDHAT_API_HOST}/csaf/{RHSA_id}.json'
-    # 'https://access.redhat.com/hydra/rest/securitydata'
-    # Make the GET request to the CSAF endpoint
     response = requests.get(endpoint, proxies=PROXIES)
+    
+    if response.status_code != 200:
+        raise Exception(f'Invalid request; returned {response.status_code} for CSAF endpoint: {endpoint}')
+    
     return response.json()
 
 # example usage
