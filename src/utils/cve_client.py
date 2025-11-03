@@ -1,12 +1,16 @@
 import json
 import requests
 from datetime import datetime, timedelta
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 REDHAT_API_HOST = 'https://access.redhat.com/hydra/rest/securitydata'
 PROXIES = {}
 
 
 def get_data(query):
+    logger.info(f"Entering get_data with query: {query}")
     full_query = REDHAT_API_HOST + query
     r = requests.get(full_query, proxies=PROXIES)
 
@@ -29,7 +33,8 @@ def get_cve_data(RHSA_id:str) -> dict:
     
     Returns:
         list of dict: Parsed JSON data from the API response.
-    """   
+    """
+    logger.info(f"Entering get_cve_data with RHSA_id: {RHSA_id}")
     data = get_data('/cve.json' + '?' + f'advisory={RHSA_id}')
     responses = []
 
@@ -57,6 +62,7 @@ def get_csaf_data(RHSA_id:str) -> dict:
     Returns:
         dict: Parsed JSON data from the API response.
     """
+    logger.info(f"Entering get_csaf_data with RHSA_id: {RHSA_id}")
     endpoint = f'{REDHAT_API_HOST}/csaf/{RHSA_id}.json'
     response = requests.get(endpoint, proxies=PROXIES)
     

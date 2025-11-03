@@ -2,8 +2,11 @@ import os
 from jira import JIRA
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
+from src.utils.logger import get_logger
 
 load_dotenv()
+
+logger = get_logger(__name__)
 
 JIRA_URL = os.getenv("JIRA_URL", "").rstrip("/")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")
@@ -12,11 +15,13 @@ JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY", "")
 
 class JiraClient:
     def __init__(self):
+        logger.info("Entering JiraClient.__init__")
         self.jira = JIRA(options={"server": JIRA_URL}, basic_auth=(JIRA_EMAIL, JIRA_API_TOKEN))
         self.project_key = JIRA_PROJECT_KEY
     
     def _simplify_issue(self, issue) -> Dict[str, Any]:
         """Convert JIRA Issue object to simplified dict."""
+        logger.info(f"Entering JiraClient._simplify_issue for issue: {issue.key if hasattr(issue, 'key') else 'unknown'}")
         progress = getattr(issue.fields, "aggregateprogress", None) or getattr(issue.fields, "progress", None)
         return {
             "key": issue.key,
@@ -33,6 +38,7 @@ class JiraClient:
     
     def create_epic(self, summary: str, description: Optional[str] = None) -> Dict:
         """Create an EPIC in JIRA."""
+        logger.info(f"Entering JiraClient.create_epic with summary: {summary[:50]}...")
         fields = {
             "project": {"key": self.project_key},
             "summary": summary,
@@ -46,6 +52,7 @@ class JiraClient:
     def create_story(self, epic_key: str, summary: str, description: Optional[str] = None, 
                      vuln_data: Optional[Dict] = None, custom_fields: Optional[Dict] = None) -> Dict:
         """Create a story under an epic with vulnerability properties."""
+        logger.info(f"Entering JiraClient.create_story with epic_key: {epic_key}, summary: {summary[:50]}...")
         fields = {
             "project": {"key": self.project_key},
             "summary": summary,
@@ -116,6 +123,7 @@ class JiraClient:
     
     def create_subtask(self, story_key: str, summary: str, description: Optional[str] = None) -> Dict:
         """Create a sub-task under a story."""
+        logger.info(f"Entering JiraClient.create_subtask with story_key: {story_key}")
         parent = self.jira.issue(story_key)
         fields = {
             "project": {"key": self.project_key},
@@ -130,6 +138,7 @@ class JiraClient:
     
     def update_progress(self, issue_key: str, progress: int) -> Dict:
         """Update progress (0-100) by transitioning issue status."""
+        logger.info(f"Entering JiraClient.update_progress for issue_key: {issue_key}, progress: {progress}")
         issue = self.jira.issue(issue_key)
         transitions = self.jira.transitions(issue)
         transition_map = {100: "Done", 50: "In Progress", 0: "To Do"}
@@ -142,23 +151,27 @@ class JiraClient:
     
     def update_details(self, issue_key: str, fields: Dict[str, Any]) -> Dict:
         """Update issue details with provided fields."""
+        logger.info(f"Entering JiraClient.update_details for issue_key: {issue_key}")
         issue = self.jira.issue(issue_key)
         issue.update(fields=fields)
         return {}
     
     def search_issues(self, jql: str, max_results: int = 100) -> List[Dict[str, Any]]:
         """Search issues using JQL."""
+        logger.info(f"Entering JiraClient.search_issues with jql: {jql[:50]}...")
         issues = self.jira.search_issues(jql, maxResults=max_results)
         return [self._simplify_issue(issue) for issue in issues]
     
     def list_epics(self, project_key: Optional[str] = None, max_results: int = 100) -> List[Dict[str, Any]]:
         """List all epics in a project."""
+        logger.info(f"Entering JiraClient.list_epics for project_key: {project_key}")
         proj = project_key or self.project_key
         jql = f'project = {proj} AND issuetype = Epic ORDER BY updated DESC'
         return self.search_issues(jql, max_results)
     
     def list_stories(self, epic_key: Optional[str] = None, project_key: Optional[str] = None, max_results: int = 200) -> List[Dict[str, Any]]:
         """List stories, optionally filtered by epic."""
+        logger.info(f"Entering JiraClient.list_stories with epic_key: {epic_key}, project_key: {project_key}")
         if epic_key:
             jql = f'"Epic Link" = {epic_key} ORDER BY updated DESC'
         else:
@@ -168,11 +181,13 @@ class JiraClient:
     
     def list_subtasks(self, parent_key: str, max_results: int = 200) -> List[Dict[str, Any]]:
         """List sub-tasks under a parent issue."""
+        logger.info(f"Entering JiraClient.list_subtasks for parent_key: {parent_key}")
         jql = f'parent = {parent_key} ORDER BY updated DESC'
         return self.search_issues(jql, max_results)
     
     def get_issue(self, issue_key: str, fields: Optional[List[str]] = None) -> Dict[str, Any]:
         """Get a single issue by key."""
+        logger.info(f"Entering JiraClient.get_issue for issue_key: {issue_key}")
         issue = self.jira.issue(issue_key)
         return self._simplify_issue(issue)
 
@@ -181,6 +196,7 @@ _jira_client = None
 
 def get_jira_client() -> JiraClient:
     """Get or create JIRA client instance."""
+    logger.info("Entering get_jira_client")
     global _jira_client
     if _jira_client is None:
         _jira_client = JiraClient()
@@ -188,39 +204,48 @@ def get_jira_client() -> JiraClient:
 
 def create_epic(summary: str, description: Optional[str] = None) -> Dict:
     """Create an EPIC."""
+    logger.info(f"Entering create_epic with summary: {summary[:50]}...")
     return get_jira_client().create_epic(summary, description)
 
 def create_story(epic_key: str, summary: str, description: Optional[str] = None, 
                  vuln_data: Optional[Dict] = None, custom_fields: Optional[Dict] = None) -> Dict:
     """Create a story under an epic."""
+    logger.info(f"Entering create_story with epic_key: {epic_key}")
     return get_jira_client().create_story(epic_key, summary, description, vuln_data, custom_fields)
 
 def create_subtask(story_key: str, summary: str, description: Optional[str] = None) -> Dict:
     """Create a sub-task under a story."""
+    logger.info(f"Entering create_subtask with story_key: {story_key}")
     return get_jira_client().create_subtask(story_key, summary, description)
 
 def update_progress(issue_key: str, progress: int) -> Dict:
     """Update progress of an issue (0-100)."""
+    logger.info(f"Entering update_progress for issue_key: {issue_key}, progress: {progress}")
     return get_jira_client().update_progress(issue_key, progress)
 
 def update_details(issue_key: str, **kwargs) -> Dict:
     """Update issue details. Example: update_details('PROJ-123', summary='New title', description='New desc')."""
+    logger.info(f"Entering update_details for issue_key: {issue_key}")
     return get_jira_client().update_details(issue_key, kwargs)
 
 def list_epics(project_key: Optional[str] = None, max_results: int = 100) -> List[Dict[str, Any]]:
     """List all epics in a project."""
+    logger.info(f"Entering list_epics for project_key: {project_key}")
     return get_jira_client().list_epics(project_key, max_results)
 
 def list_stories(epic_key: Optional[str] = None, project_key: Optional[str] = None, max_results: int = 200) -> List[Dict[str, Any]]:
     """List stories, optionally filtered by epic."""
+    logger.info(f"Entering list_stories with epic_key: {epic_key}, project_key: {project_key}")
     return get_jira_client().list_stories(epic_key, project_key, max_results)
 
 def list_subtasks(parent_key: str, max_results: int = 200) -> List[Dict[str, Any]]:
     """List sub-tasks under a parent issue."""
+    logger.info(f"Entering list_subtasks for parent_key: {parent_key}")
     return get_jira_client().list_subtasks(parent_key, max_results)
 
 def get_issue(issue_key: str, fields: Optional[List[str]] = None) -> Dict[str, Any]:
     """Get a single issue by key."""
+    logger.info(f"Entering get_issue for issue_key: {issue_key}")
     return get_jira_client().get_issue(issue_key, fields)
 
 

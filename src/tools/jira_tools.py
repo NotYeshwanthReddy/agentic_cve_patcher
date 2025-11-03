@@ -2,10 +2,14 @@ import json
 from typing import Optional, Dict, Any
 from src.utils.jira_client import get_jira_client, create_epic, create_story
 from src.utils.settings import llm
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def find_epic_by_app_code(app_code: str) -> Optional[str]:
     """Find EPIC key that contains APP_CODE in its summary."""
+    logger.info(f"Entering find_epic_by_app_code with app_code: {app_code}")
     client = get_jira_client()
     epics = client.list_epics()
     app_code_upper = app_code.upper()
@@ -19,6 +23,7 @@ def find_epic_by_app_code(app_code: str) -> Optional[str]:
 
 def map_csv_to_jira_fields(vuln_data: Dict[str, Any], jira_field_names: list) -> Dict[str, Any]:
     """Map CSV column names to JIRA custom field names using LLM."""
+    logger.info(f"Entering map_csv_to_jira_fields with {len(vuln_data)} CSV fields")
     # Create mapping prompt
     csv_keys = list(vuln_data.keys())
     prompt = (
@@ -50,6 +55,7 @@ def map_csv_to_jira_fields(vuln_data: Dict[str, Any], jira_field_names: list) ->
 
 def prepare_custom_fields(vuln_data: Dict[str, Any], meta_fields: Dict) -> Dict[str, Any]:
     """Prepare custom fields for JIRA update from vulnerability data."""
+    logger.info("Entering prepare_custom_fields")
     # Get available JIRA field names
     jira_field_names = [fdata.get("name", "") for fdata in meta_fields.values()]
     
@@ -86,6 +92,7 @@ def prepare_custom_fields(vuln_data: Dict[str, Any], meta_fields: Dict) -> Dict[
 
 def update_story_with_vuln_data(story_key: str, vuln_data: Dict[str, Any], rhsa_id: Optional[str] = None) -> Dict:
     """Update a JIRA story with vulnerability data from state."""
+    logger.info(f"Entering update_story_with_vuln_data for story_key: {story_key}")
     client = get_jira_client()
     issue = client.jira.issue(story_key)
     
@@ -110,6 +117,7 @@ def update_story_with_vuln_data(story_key: str, vuln_data: Dict[str, Any], rhsa_
 
 def jira_update_node(state):
     """Update JIRA: find/create epic, create story if needed."""
+    logger.info("Entering jira_update_node")
     vuln_data = state.get("vuln_data")
     if not vuln_data:
         return {"output": state.get("output", "")}

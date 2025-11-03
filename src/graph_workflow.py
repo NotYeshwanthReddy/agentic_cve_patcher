@@ -4,27 +4,34 @@ from src.tools.ssh_client import ssh_node
 from src.tools.jira_tools import jira_update_node
 from src.utils.settings import llm
 from src.utils.data_handler import sample_vulns
+from src.utils.logger import get_logger
+from src.utils.sqlite_checkpointer import get_checkpointer
 from src.state import GraphState
 from src.agents.intent_classifier import classify_intent
 from src.agents.vuln_resolver import resolve_vuln_node
 
 load_dotenv()
 
+logger = get_logger(__name__)
+
 
 def classify_intent_node(state):
     """Return {'intent': str, 'intent_data': str} in the state."""
+    logger.info("Entering classify_intent_node")
     user_input = state.get("user_input", "")
     result = classify_intent(user_input)
     return {"intent": result["intent"], "intent_data": result["data"]}
 
 
 def list_vulns_node(state):
+    logger.info("Entering list_vulns_node")
     items = sample_vulns(5)
     output = "Vuln ID — Vuln Name\n{}\nWhich Vuln ID shall we resolve.?\nsample input: `Resolve Vuln ID 241573`".format("\n".join(items))
     return {"output": output}
 
 
 def llm_node(state):
+    logger.info("Entering llm_node")
     prompt = f"User wants to: {state['user_input']}. Decide what Linux command should be run and return only the command."
     command = llm.invoke(prompt).content.strip()
     return {"command": command}
@@ -51,4 +58,6 @@ graph.add_edge("llm", "ssh")
 graph.add_edge("list_vulns", END)
 graph.add_edge("ssh", END)
 
-app = graph.compile()
+# Compile with SQLite checkpointer for state persistence
+checkpointer = get_checkpointer()
+app = graph.compile(checkpointer=checkpointer)

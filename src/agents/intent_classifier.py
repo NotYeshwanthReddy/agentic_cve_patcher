@@ -1,9 +1,13 @@
 import json
 from src.utils.settings import llm
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def classify_intent(message: str) -> dict:
     """Classify intent and extract data. Returns {'intent': str, 'data': str}."""
+    logger.info(f"Entering classify_intent with message: {message[:50]}...")
     prompt = (
         "Analyze the user's message and classify their intent.\n"
         "Possible intents: LIST_VULNS (when user wants to see vulnerabilities), "

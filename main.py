@@ -1,5 +1,8 @@
 import gradio as gr
 from src.utils.ui_helpers import chat_fn
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 with gr.Blocks(title="CVE Patcher Assistant") as demo:
@@ -25,6 +28,7 @@ with gr.Blocks(title="CVE Patcher Assistant") as demo:
             )
     
     def respond(message, history):
+        logger.info("Entering respond function")
         output, state_text = chat_fn(message, history)
         history.append((message, output))
         return history, state_text, ""
@@ -34,6 +38,7 @@ with gr.Blocks(title="CVE Patcher Assistant") as demo:
 
 
 def launch_ui():
+    logger.info("Entering launch_ui")
     demo.launch()
 
 

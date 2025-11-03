@@ -2,10 +2,14 @@ import json
 from src.utils.settings import llm
 from src.utils.data_handler import get_vuln_by_id
 from src.utils.cve_client import get_cve_data, get_csaf_data
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def resolve_vuln_node(state):
     """Fetch vuln data from CSV, check for RHSA ID, and fetch CVE/CSAF data if found."""
+    logger.info("Entering resolve_vuln_node")
     vuln_id = state.get("intent_data", "").strip()
     
     if not vuln_id:

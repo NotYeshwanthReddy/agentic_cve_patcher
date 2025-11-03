@@ -208,3 +208,8 @@ __marimo__/
 
 *.pem
 resources/*.csv
+
+# Database files
+data/
+*.db
+*.db-journal

@@ -1,5 +1,6 @@
 gradio
 langgraph
+langgraph-checkpoint-sqlite
 paramiko
 python-dotenv
 openai
