@@ -1,9 +1,11 @@
 import gradio as gr
 from src.graph_workflow import app
 
+
 def chat_fn(message, history):
-    result = app.invoke({"user_input": message})
-    return result["output"]  # ✅ Return just the response text
+    result = app.invoke({"user_input": message or ""})
+    return result.get("output") or ""
+
 
 def launch_ui():
     gr.ChatInterface(
@@ -11,6 +13,7 @@ def launch_ui():
         title="Remote Shell Assistant",
         description="Chat with your remote Linux server via SSH."
     ).launch()
+
 
 if __name__ == "__main__":
     launch_ui()

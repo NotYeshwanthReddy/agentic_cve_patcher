@@ -25,6 +25,16 @@ class SSHClient:
         return output if output else error or "Command executed successfully."
 
 ssh = SSHClient()
+
+
 def ssh_node(state):
-    output = ssh.run(state["command"])
+    # If a previous node already produced final output, pass it through.
+    if state.get("output"):
+        return {"output": state["output"]}
+
+    command = state.get("command") or ""
+    if not command:
+        return {"output": "No command provided."}
+
+    output = ssh.run(command)
     return {"output": output}
