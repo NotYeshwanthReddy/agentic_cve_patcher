@@ -208,6 +208,7 @@ __marimo__/
 
 *.pem
 resources/*.csv
+resources/plan.json
 
 # Database files
 data/
