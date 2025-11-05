@@ -2,6 +2,7 @@ import paramiko
 import os
 from dotenv import load_dotenv
 from src.utils.logger import get_logger
+from src.utils.settings import llm
 
 load_dotenv()
 
@@ -38,10 +39,21 @@ def ssh_node(state):
     if state.get("output"):
         return {"output": state["output"]}
 
-    command = state.get("command") or ""
+    # Convert user input to command using LLM if command not already provided
+    command = state.get("command")
     if not command:
-        return {"output": "No command provided."}
+        user_input = state.get("user_input", "")
+        if not user_input:
+            return {"output": "No command or user input provided."}
+        
+        logger.info("Converting user input to Linux command using LLM")
+        prompt = f"User wants to: {user_input}. Decide what Linux command should be run and return only the command."
+        command = llm.invoke(prompt).content.strip()
+    
+    if not command:
+        return {"output": "Failed to generate ssh command from user input."}
 
     output = ssh.run(command)
-    return {"output": output}
+    output = f"running `command: {command}`\nReceived `output:`\n{output}"
+    return {"output": output, "command": command}
 

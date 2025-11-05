@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, List, Dict, Any
 
 # Define the structure of the graph state
 class GraphState(TypedDict):
@@ -11,5 +11,4 @@ class GraphState(TypedDict):
     rhsa_id: Optional[str]
     cve_data: Optional[dict]
     csaf_data: Optional[dict]
-    epic_key: Optional[str]
-    story_key: Optional[str]
+    jira_issues: Optional[Dict[str, Any]]  # Stores epic_key, story_key, and subtask_keys

@@ -16,8 +16,7 @@ DEFAULT_STATE: dict = {
     "rhsa_id": None,
     "cve_data": None,
     "csaf_data": None,
-    "epic_key": None,
-    "story_key": None,
+    "jira_issues": None,
 }
 
 

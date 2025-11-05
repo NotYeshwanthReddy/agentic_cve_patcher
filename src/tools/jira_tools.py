@@ -1,10 +1,73 @@
 import json
-from typing import Optional, Dict, Any
-from src.utils.jira_client import get_jira_client, create_epic, create_story
+from typing import Optional, Dict, Any, List
+from src.utils.jira_client import get_jira_client, create_epic, create_story, create_subtask
 from src.utils.settings import llm
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+# Sub-task templates for vulnerability resolution workflow
+SUBTASK_TEMPLATES = [
+    {
+        "summary": "Perform Vulnerability Analysis and Blast Radius Analysis",
+        "description": "Analyze the vulnerability impact and assess the blast radius to understand affected systems and potential risks."
+    },
+    {
+        "summary": "Gather patch and mitigation details",
+        "description": "Collect patch and mitigation information from CVE and CSAF data received from RHSA API."
+    },
+    {
+        "summary": "SSH into the system and verify if the vulnerability is present",
+        "description": "Connect to the target system via SSH and verify the presence of the vulnerability."
+    },
+    {
+        "summary": "Apply the fix (patch/update)",
+        "description": "Apply the necessary patch or update to resolve the vulnerability."
+    },
+    {
+        "summary": "Verify that the vulnerability is resolved",
+        "description": "Confirm that the applied fix has successfully resolved the vulnerability."
+    }
+]
+
+
+def create_vuln_resolution_subtasks(story_key: str, cve_data: Optional[Dict] = None, 
+                                     csaf_data: Optional[Dict] = None) -> List[Dict[str, str]]:
+    """
+    Create sub-tasks under a story for vulnerability resolution workflow.
+    
+    Args:
+        story_key: The JIRA story key to create sub-tasks under
+        cve_data: Optional CVE data to include in descriptions
+        csaf_data: Optional CSAF data to include in descriptions
+        
+    Returns:
+        List of sub-task keys (dicts with 'key' field)
+    """
+    logger.info(f"Entering create_vuln_resolution_subtasks for story_key: {story_key}")
+    subtask_keys = []
+    
+    for template in SUBTASK_TEMPLATES:
+        try:
+            # Enhance description with CVE/CSAF data if available
+            description = template["description"]
+            
+            # Add CVE/CSAF details to the second sub-task (gathering patch details)
+            if "Gather patch" in template["summary"]:
+                if cve_data:
+                    description += f"\n\nCVE Data Available: {len(cve_data)} fields"
+                if csaf_data:
+                    description += f"\n\nCSAF Data Available: {len(csaf_data)} fields"
+            
+            subtask = create_subtask(story_key, template["summary"], description)
+            subtask_keys.append({"key": subtask.get("key")})
+            logger.info(f"Created sub-task {subtask.get('key')}: {template['summary']}")
+        except Exception as e:
+            logger.error(f"Failed to create sub-task '{template['summary']}': {e}")
+            continue
+    
+    return subtask_keys
 
 
 def find_epic_by_app_code(app_code: str) -> Optional[str]:
@@ -129,7 +192,10 @@ def jira_update_node(state):
         return {"output": state.get("output", "") + "\nWarning: APP_CODE not found in vulnerability data."}
     
     client = get_jira_client()
-    epic_key = state.get("epic_key")
+    
+    # Get existing jira_issues or initialize
+    jira_issues = state.get("jira_issues") or {}
+    epic_key = jira_issues.get("epic_key")
     
     # Step 1 & 2: Find or create epic
     if not epic_key:
@@ -141,12 +207,13 @@ def jira_update_node(state):
             epic_key = epic.get("key")
     
     # Step 4 & 5: Create story if story_key doesn't exist
-    story_key = state.get("story_key")
+    story_key = jira_issues.get("story_key")
     
     if not story_key:
         vuln_id = str(vuln_data.get("Vuln ID", ""))
-        vuln_name = str(vuln_data.get("Vuln Name", "Vulnerability"))
-        story_summary = f"Patch {vuln_id}: {vuln_name}"
+        vuln_name = str(vuln_data.get("Vuln Name", ""))
+        asset_name = str(vuln_data.get("Asset Name", ""))
+        story_summary = f"Patch for Vuln ID:{vuln_id} | Asset Name:{asset_name} | Vuln Name:{vuln_name}"
         
         # Prepare custom fields before creating story
         meta = client.jira.createmeta(projectKeys=client.project_key, issuetypeNames="Story", expand="projects.issuetypes.fields")
@@ -172,10 +239,25 @@ def jira_update_node(state):
                             issue.update(fields={field_id: rhsa_id})
                             break
     
-    output = state.get("output", "") + f"\nJIRA: Epic {epic_key}, Story {story_key} ready."
+    # Step 6: Create sub-tasks under the story
+    subtask_keys = []
+    if story_key:
+        cve_data = state.get("cve_data")
+        csaf_data = state.get("csaf_data")
+        subtasks = create_vuln_resolution_subtasks(story_key, cve_data, csaf_data)
+        subtask_keys = [st.get("key") for st in subtasks if st.get("key")]
     
-    return {
+    # Store all JIRA issue keys in a dict
+    jira_issues = {
         "epic_key": epic_key,
         "story_key": story_key,
+        "subtask_keys": subtask_keys
+    }
+    
+    subtask_summary = f", {len(subtask_keys)} sub-task(s)" if subtask_keys else ""
+    output = state.get("output", "") + f"\nJIRA: Epic {epic_key}, Story {story_key}{subtask_summary} ready."
+    
+    return {
+        "jira_issues": jira_issues,
         "output": output
     }

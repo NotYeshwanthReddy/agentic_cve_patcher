@@ -2,7 +2,6 @@ from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 from src.tools.ssh_client import ssh_node
 from src.tools.jira_tools import jira_update_node
-from src.utils.settings import llm
 from src.utils.data_handler import sample_vulns
 from src.utils.logger import get_logger
 from src.utils.sqlite_checkpointer import get_checkpointer
@@ -30,11 +29,31 @@ def list_vulns_node(state):
     return {"output": output}
 
 
-def llm_node(state):
-    logger.info("Entering llm_node")
-    prompt = f"User wants to: {state['user_input']}. Decide what Linux command should be run and return only the command."
-    command = llm.invoke(prompt).content.strip()
-    return {"command": command}
+def helper_node(state):
+    """Return help message with all available functionalities."""
+    logger.info("Entering helper_node")
+    help_message = """This chat app can do the following.
+
+1. list vulnerabilities
+
+2. Analyze vulnerability by ID (example: `Analyze Vuln ID 241573`)
+
+3. Create JIRA story for resolution progress (example: `Create JIRA story for Vuln ID 241573`)
+
+4. fetch jira story, sub-task details and its status/progress (example: `Fetch JIRA story for Vuln ID 241573`)
+
+5. Query GraphDB (Gremlin API)
+
+6. Generate Plan for fixing the vulnerability
+
+7. Verify vulnerability existance
+
+8. Patch the vulnerability
+
+9. Verify if patching is done successfully or not.
+
+10. Generate report of how the patching is done and save it to a markdown file."""
+    return {"output": help_message}
 
 
 graph = StateGraph(GraphState)
@@ -42,22 +61,24 @@ graph.add_node("classify", classify_intent_node)
 graph.add_node("list_vulns", list_vulns_node)
 graph.add_node("resolve_vuln", resolve_vuln_node)
 graph.add_node("jira_update", jira_update_node)
-graph.add_node("llm", llm_node)
 graph.add_node("ssh", ssh_node)
+graph.add_node("helper", helper_node)
 
 graph.add_edge(START, "classify")
 graph.add_conditional_edges("classify", 
                             lambda s: s.get("intent"), 
                             {"LIST_VULNS": "list_vulns",
                              "RESOLVE_VULN": "resolve_vuln",
-                             "OTHER": "llm"
+                             "HELP": "helper",
+                             "OTHER": "ssh"
                             })
 graph.add_edge("resolve_vuln", "jira_update")
 graph.add_edge("jira_update", END)
-graph.add_edge("llm", "ssh")
 graph.add_edge("list_vulns", END)
+graph.add_edge("helper", END)
 graph.add_edge("ssh", END)
 
 # Compile with SQLite checkpointer for state persistence
 checkpointer = get_checkpointer()
-app = graph.compile(checkpointer=checkpointer)
+# app = graph.compile(checkpointer=checkpointer)
+app = graph.compile()

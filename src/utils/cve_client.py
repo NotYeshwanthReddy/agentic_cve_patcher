@@ -68,7 +68,8 @@ def get_csaf_data(RHSA_id:str) -> dict:
     
     if response.status_code != 200:
         raise Exception(f'Invalid request; returned {response.status_code} for CSAF endpoint: {endpoint}')
-    
+    else:
+        print(f"Successfully fetched data from {endpoint}")
     return response.json()
 
 # example usage
