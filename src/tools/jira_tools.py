@@ -1,6 +1,6 @@
 import json
 from typing import Optional, Dict, Any, List
-from src.utils.jira_client import get_jira_client, create_epic, create_story, create_subtask
+from src.utils.jira_client import get_jira_client, create_epic, create_story, create_subtask, get_issue, update_progress
 from src.utils.settings import llm
 from src.utils.logger import get_logger
 
@@ -178,9 +178,154 @@ def update_story_with_vuln_data(story_key: str, vuln_data: Dict[str, Any], rhsa_
     return {"updated": True}
 
 
+def jira_fetch_node(state):
+    """Fetch JIRA story, sub-task details and its status/progress."""
+    logger.info("Entering jira_fetch_node")
+    user_input = state.get("user_input", "")
+    jira_issues = state.get("jira_issues") or {}
+    
+    # Get story and sub-task keys from state
+    story_key = jira_issues.get("story_key")
+    subtask_keys = jira_issues.get("subtask_keys", [])
+    
+    if not story_key:
+        return {"output": "No JIRA story found. Create a JIRA story first.\nExample: `Create JIRA story for this vulnerability.`"}
+    
+    # Use LLM to determine what user wants (story, subtasks, or both)
+    prompt = (
+        f"User query: '{user_input}'\n"
+        "Determine what the user wants:\n"
+        "- 'story' if they want story status/details\n"
+        "- 'subtasks' if they want sub-task status/details\n"
+        "- 'both' if they want both story and sub-tasks\n"
+        "Reply with ONLY valid JSON: {\"request_type\": \"story\" | \"subtasks\" | \"both\"}"
+    )
+    
+    try:
+        resp = llm.invoke(prompt).content.strip()
+        if "```" in resp:
+            resp = resp.split("```")[1].replace("json", "").strip()
+        result = json.loads(resp)
+        request_type = result.get("request_type", "both").lower()
+    except Exception:
+        request_type = "both"
+    
+    output_parts = []
+    
+    # Fetch story details if requested
+    if request_type in ["story", "both"]:
+        story = get_issue(story_key)
+        output_parts.append(f"**Story: {story_key}**\n")
+        output_parts.append(f"Summary: {story.get('summary', 'N/A')}\n")
+        output_parts.append(f"Status: {story.get('status', 'N/A')}\n")
+        # output_parts.append(f"Progress: {story.get('progress', {}).get('percent', 0)}%\n")
+    
+    # Fetch sub-task details if requested
+    if request_type in ["subtasks", "both"] and subtask_keys:
+        output_parts.append(f"\n**Sub-tasks ({len(subtask_keys)}):**\n")
+        for subtask_key in subtask_keys:
+            try:
+                subtask = get_issue(subtask_key)
+                output_parts.append(f"- {subtask_key}: {subtask.get('summary', 'N/A')} | Status: {subtask.get('status', 'N/A')}\n")
+            except Exception as e:
+                logger.error(f"Failed to fetch subtask {subtask_key}: {e}")
+                output_parts.append(f"- {subtask_key}: Error fetching details\n")
+    
+    return {"output": "".join(output_parts) if output_parts else "No data to display."}
+
+
+def jira_update_node(state):
+    """Update JIRA story or sub-task status/progress."""
+    logger.info("Entering jira_update_node")
+    user_input = state.get("user_input", "")
+    jira_issues = state.get("jira_issues") or {}
+    
+    story_key = jira_issues.get("story_key")
+    subtask_keys = jira_issues.get("subtask_keys", [])
+    
+    if not story_key:
+        return {"output": "No JIRA story found. Create a JIRA story first."}
+    
+    # Use LLM to determine: what to update (story/subtask), target status, and subtask identifier if needed
+    prompt = (
+        f"User query: '{user_input}'\n"
+        "Determine:\n"
+        "1. What to update: 'story' or 'subtask' (use 'story' if unclear)\n"
+        "2. Target status: 'BACKLOG', 'SELECTED FOR DEVELOPMENT', 'IN PROGRESS', or 'DONE'\n"
+        "3. If subtask, extract identifier: JIRA key (e.g., 'DS-47') or summary text (e.g., 'Gather patch') - leave empty if story\n"
+        "Reply with ONLY valid JSON: {\"target\": \"story\" | \"subtask\", \"status\": \"BACKLOG\" | \"SELECTED FOR DEVELOPMENT\" | \"IN PROGRESS\" | \"DONE\", \"subtask_id\": \"<key or summary>\" | \"\"}"
+    )
+    
+    try:
+        resp = llm.invoke(prompt).content.strip()
+        if "```" in resp:
+            resp = resp.split("```")[1].replace("json", "").strip()
+        result = json.loads(resp)
+        target = result.get("target", "story").lower()
+        status = result.get("status", "IN PROGRESS").upper()
+        subtask_id = result.get("subtask_id", "").strip()
+    except Exception:
+        target = "story"
+        status = "IN PROGRESS"
+        subtask_id = ""
+    
+    client = get_jira_client()
+    
+    # Find the specific issue to update
+    if target == "story":
+        issue_key = story_key
+    else:
+        # Find matching subtask by key or summary
+        issue_key = None
+        if subtask_id:
+            # Try to match by key first
+            for key in subtask_keys:
+                if subtask_id.upper() in key.upper():
+                    issue_key = key
+                    break
+            
+            # If not found by key, try to match by summary
+            if not issue_key:
+                for key in subtask_keys:
+                    try:
+                        subtask = get_issue(key)
+                        if subtask_id.lower() in subtask.get("summary", "").lower():
+                            issue_key = key
+                            break
+                    except Exception:
+                        continue
+        
+        # Fallback to first subtask if no match found
+        if not issue_key:
+            issue_key = subtask_keys[0] if subtask_keys else None
+    
+    if not issue_key:
+        return {"output": f"No {'story' if target == 'story' else 'subtask'} found to update."}
+    
+    # Get available transitions and find matching one
+    issue = client.jira.issue(issue_key)
+    transitions = client.jira.transitions(issue)
+    
+    # Find transition that matches the target status (flexible matching)
+    status_upper = status.upper()
+    transition = next((t for t in transitions if status_upper in t["name"].upper() or status_upper.replace(" ", "") in t["name"].upper().replace(" ", "")), None)
+    
+    if transition:
+        client.jira.transition_issue(issue, transition["id"])
+        updated_issue = get_issue(issue_key)
+        return {"output": f"Updated {target} {issue_key} to status: {updated_issue.get('status', status)}"}
+    else:
+        # Fallback: use update_progress with status mapping
+        status_map = {"BACKLOG": 0, "SELECTED FOR DEVELOPMENT": 25, "IN PROGRESS": 50, "DONE": 100}
+        progress = status_map.get(status_upper, 50)
+        update_progress(issue_key, progress)
+        updated_issue = get_issue(issue_key)
+        return {"output": f"Updated {target} {issue_key} status to: {updated_issue.get('status', status)}"}
+
+
 def jira_create_node(state):
     """Update JIRA: find/create epic, create story if needed."""
-    logger.info("Entering jira_update_node")
+    logger.info("Entering jira_create_node")
     vuln_data = state.get("vuln_data")
     if not vuln_data:
         return {"output": "No vulnerability data provided. Analyze the vulnerability first.\nExample: `Analyze Vuln ID 241573`"}

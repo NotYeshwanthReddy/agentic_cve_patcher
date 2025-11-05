@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 from src.tools.ssh_client import ssh_node
-from src.tools.jira_tools import jira_create_node
+from src.tools.jira_tools import jira_create_node, jira_fetch_node, jira_update_node
 from src.utils.data_handler import sample_vulns
 from src.utils.logger import get_logger
 from src.utils.sqlite_checkpointer import get_checkpointer
@@ -42,23 +42,21 @@ def helper_node(state):
 
 4. fetch jira story, sub-task details and its status/progress (example: `Fetch JIRA story status`)
 
-5. Query GraphDB (Gremlin API)
+5. Update JIRA story or sub-task status (example: `Update story status to IN PROGRESS`)
 
-6. Generate Plan for fixing the vulnerability
+6. Query GraphDB (Gremlin API)
 
-7. Verify vulnerability existance
+7. Generate Plan for fixing the vulnerability
 
-8. Patch the vulnerability
+8. Verify vulnerability existance
 
-9. Verify if patching is done successfully or not.
+9. Patch the vulnerability
 
-10. Generate report of how the patching is done and save it to a markdown file."""
+10. Verify if patching is done successfully or not.
+
+11. Generate report of how the patching is done and save it to a markdown file."""
     return {"output": help_message}
 
-
-def fetch_jira_node(state):
-    """Fetch JIRA story, sub-task details and its status/progress."""    
-    return {"output": "Fetching JIRA story, sub-task details and its status/progress."}
 
 
 graph = StateGraph(GraphState)
@@ -66,7 +64,8 @@ graph.add_node("classify", classify_intent_node)
 graph.add_node("list_vulns", list_vulns_node)
 graph.add_node("analyze_vuln", analyze_vuln_node)
 graph.add_node("jira_create_node", jira_create_node)
-graph.add_node("fetch_jira_node", fetch_jira_node)
+graph.add_node("jira_fetch_node", jira_fetch_node)
+graph.add_node("jira_update_node", jira_update_node)
 graph.add_node("ssh", ssh_node)
 graph.add_node("helper", helper_node)
 
@@ -76,13 +75,15 @@ graph.add_conditional_edges("classify",
                             {"LIST_VULNS": "list_vulns",
                              "ANALYZE_VULN": "analyze_vuln",
                              "CREATE_JIRA_STORY": "jira_create_node",
-                             "FETCH_JIRA_STORY": "fetch_jira_node",
+                             "FETCH_JIRA_STORY": "jira_fetch_node",
+                             "UPDATE_JIRA_STORY": "jira_update_node",
                              "HELP": "helper",
                              "OTHER": "ssh"
                             })
 graph.add_edge("analyze_vuln", END)
 graph.add_edge("jira_create_node", END)
-graph.add_edge("fetch_jira_node", END)
+graph.add_edge("jira_fetch_node", END)
+graph.add_edge("jira_update_node", END)
 graph.add_edge("list_vulns", END)
 graph.add_edge("helper", END)
 graph.add_edge("ssh", END)

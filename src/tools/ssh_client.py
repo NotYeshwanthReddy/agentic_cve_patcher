@@ -35,20 +35,15 @@ ssh = SSHClient()
 
 def ssh_node(state):
     logger.info("Entering ssh_node")
-    # If a previous node already produced final output, pass it through.
-    if state.get("output"):
-        return {"output": state["output"]}
 
     # Convert user input to command using LLM if command not already provided
-    command = state.get("command")
-    if not command:
-        user_input = state.get("user_input", "")
-        if not user_input:
-            return {"output": "No command or user input provided."}
+    user_input = state.get("user_input", "")
+    if not user_input:
+        return {"output": "No command or user input provided."}
         
-        logger.info("Converting user input to Linux command using LLM")
-        prompt = f"User wants to: {user_input}. Decide what Linux command should be run and return only the command."
-        command = llm.invoke(prompt).content.strip()
+    logger.info("Converting user input to Linux command using LLM")
+    prompt = f"User wants to: {user_input}. Decide what Linux command should be run and return only the command."
+    command = llm.invoke(prompt).content.strip()
     
     if not command:
         return {"output": "Failed to generate ssh command from user input."}

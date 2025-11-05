@@ -12,14 +12,17 @@ def classify_intent(message: str) -> dict:
         "Analyze the user's message and classify their intent.\n"
         "Possible intents: LIST_VULNS (when user wants to see vulnerabilities), "
         "ANALYZE_VULN (when user wants to analyze a specific vulnerability ID), "
-        "CREATE_JIRA_STORY (when user wants to create a JIRA story for a specific vulnerability ID), "
-        "FETCH_JIRA_STORY (when user wants to fetch a JIRA story for a specific vulnerability ID), "
+        "CREATE_JIRA_STORY (when user wants to create a JIRA story), "
+        "FETCH_JIRA_STORY (when user wants to fetch a JIRA status for a specific story/sub-task), with ID number"
+        "UPDATE_JIRA_STORY (when user wants to update a JIRA status for a specific story/sub-task with status BACKLOG, SELECTED FOR DEVELOPMENT, IN PROGRESS, or DONE), "
         "HELP (when user asks for help, features, capabilities, or what the app can do), "
         "or OTHER (for any other request).\n"
-        "For ANALYZE_VULN, CREATE_JIRA_STORY, FETCH_JIRA_STORY intent, extract the Vuln ID number in the 'data' field.\n"
+        "For ANALYZE_VULN intent, extract the Vuln ID number in the 'data' field.\n"
+        "For FETCH_JIRA_STORY intent, extract the JIRA story/sub-task ID number in the 'data' field.\n"
+        "For UPDATE_JIRA_STORY intent, extract the JIRA story/sub-task ID number (StoryNumber, SubTaskNumber) and status (BACKLOG, SELECTED FOR DEVELOPMENT, IN PROGRESS, or DONE) in the 'data' field.\n"
         "Reply with ONLY a valid JSON object in this exact format:\n"
         '{"intent": "<intent>", "data": "<data>"}\n'
-        "For LIST_VULNS, ANALYZE_VULN, CREATE_JIRA_STORY, FETCH_JIRA_STORY, HELP, or OTHER intents, set 'data' to empty string.\n"
+        "For LIST_VULNS, ANALYZE_VULN, CREATE_JIRA_STORY, FETCH_JIRA_STORY, UPDATE_JIRA_STORY, HELP, or OTHER intents, set 'data' to empty string.\n"
         f"Message: '''{message}'''"
     )
     try:
