@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from src.tools.ssh_client import ssh_node
 from src.tools.jira_tools import jira_create_node, jira_fetch_node, jira_update_node
 from src.tools.gremlin_tools import gremlin_node
+from src.tools.planner_tools import planner_node
 from src.utils.data_handler import sample_vulns
 from src.utils.logger import get_logger
 from src.utils.sqlite_checkpointer import get_checkpointer
@@ -47,7 +48,7 @@ def helper_node(state):
 
 6. Query GraphDB (Gremlin API) - Analyze vulnerability impact, blast radius, identify responsible teams (example: `Analyze vulnerability impact for CVE-2022-3602`)
 
-7. Generate Plan for fixing the vulnerability
+7. Generate Plan for fixing the vulnerability (example: `Generate plan for fixing this vulnerability`)
 
 8. Verify vulnerability existance
 
@@ -68,6 +69,7 @@ graph.add_node("jira_create_node", jira_create_node)
 graph.add_node("jira_fetch_node", jira_fetch_node)
 graph.add_node("jira_update_node", jira_update_node)
 graph.add_node("gremlin", gremlin_node)
+graph.add_node("planner", planner_node)
 graph.add_node("ssh", ssh_node)
 graph.add_node("helper", helper_node)
 
@@ -80,14 +82,17 @@ graph.add_conditional_edges("classify",
                              "FETCH_JIRA_STORY": "jira_fetch_node",
                              "UPDATE_JIRA_STORY": "jira_update_node",
                              "QUERY_GRAPHDB": "gremlin",
+                             "GENERATE_PLAN": "planner",
+                             "SSH": "ssh",
                              "HELP": "helper",
-                             "OTHER": "ssh"
+                             "OTHER": "helper"
                             })
 graph.add_edge("analyze_vuln", END)
 graph.add_edge("jira_create_node", END)
 graph.add_edge("jira_fetch_node", END)
 graph.add_edge("jira_update_node", END)
 graph.add_edge("gremlin", END)
+graph.add_edge("planner", END)
 graph.add_edge("list_vulns", END)
 graph.add_edge("helper", END)
 graph.add_edge("ssh", END)

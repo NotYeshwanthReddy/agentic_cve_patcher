@@ -1,0 +1,24 @@
+{
+  "check_packages": {
+    "command": "rpm -q python-setuptools",
+    "description": "Check the installed version of python-setuptools to determine if it's vulnerable."
+  },
+  "apply_remediation": {
+    "command": "yum update python-setuptools",
+    "type": "update",
+    "description": "Update python-setuptools to the secure version provided in the RHSA advisory."
+  },
+  "verify_fix": {
+    "command": "rpm -q python-setuptools",
+    "expected_result": "Version 78.1.1 or later installed."
+  },
+  "production_report": {
+    "template_fields": [
+      "vuln_id",
+      "patch_applied",
+      "verification_status",
+      "notes"
+    ],
+    "description": "Template for summarizing remediation actions and outcomes."
+  }
+}

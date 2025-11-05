@@ -12,3 +12,4 @@ class GraphState(TypedDict):
     cve_data: Optional[dict]
     csaf_data: Optional[dict]
     jira_issues: Optional[Dict[str, Any]]  # Stores epic_key, story_key, and subtask_keys
+    remediation_plan: Optional[Dict[str, Any]]  # Stores the remediation plan JSON
