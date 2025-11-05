@@ -29,6 +29,8 @@ class SSHClient:
         stdin, stdout, stderr = self.client.exec_command(command)
         output = stdout.read().decode().strip()
         error = stderr.read().decode().strip()
+        logger.info(f"SSHClient.run output: {output}")
+        logger.info(f"SSHClient.run error: {error}")
         return output if output else error or "Command executed successfully."
 
 ssh = SSHClient()

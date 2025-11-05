@@ -4,6 +4,7 @@ from src.tools.ssh_client import ssh_node
 from src.tools.jira_tools import jira_create_node, jira_fetch_node, jira_update_node
 from src.tools.gremlin_tools import gremlin_node
 from src.tools.planner_tools import planner_node
+from src.tools.patcher_tools import patcher_node
 from src.utils.data_handler import sample_vulns
 from src.utils.logger import get_logger
 from src.utils.sqlite_checkpointer import get_checkpointer
@@ -52,7 +53,7 @@ def helper_node(state):
 
 8. Verify vulnerability existance
 
-9. Patch the vulnerability
+9. Patch the vulnerability (example: `Patch this vulnerability`)
 
 10. Verify if patching is done successfully or not.
 
@@ -70,6 +71,7 @@ graph.add_node("jira_fetch_node", jira_fetch_node)
 graph.add_node("jira_update_node", jira_update_node)
 graph.add_node("gremlin", gremlin_node)
 graph.add_node("planner", planner_node)
+graph.add_node("patcher", patcher_node)
 graph.add_node("ssh", ssh_node)
 graph.add_node("helper", helper_node)
 
@@ -83,6 +85,7 @@ graph.add_conditional_edges("classify",
                              "UPDATE_JIRA_STORY": "jira_update_node",
                              "QUERY_GRAPHDB": "gremlin",
                              "GENERATE_PLAN": "planner",
+                             "PATCH_VULN": "patcher",
                              "SSH": "ssh",
                              "HELP": "helper",
                              "OTHER": "helper"
@@ -93,6 +96,7 @@ graph.add_edge("jira_fetch_node", END)
 graph.add_edge("jira_update_node", END)
 graph.add_edge("gremlin", END)
 graph.add_edge("planner", END)
+graph.add_edge("patcher", END)
 graph.add_edge("list_vulns", END)
 graph.add_edge("helper", END)
 graph.add_edge("ssh", END)

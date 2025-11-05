@@ -32,13 +32,29 @@ def planner_node(state):
     
     # Generate concise plan using LLM in JSON format
     prompt = (
-        f"Generate a SHORT, CONCISE remediation plan in JSON format for agents to fix:\n"
+        f"Generate a DETAILED but CONCISE remediation plan in JSON format for agents to fix:\n"
         f"Vulnerability ID: {vuln_id}\n"
         f"Vulnerability Name: {vuln_name}\n"
         f"RHSA ID: {rhsa_id or 'Not available'}\n\n"
         f"Key CVE/CSAF details (full data available in state):\n{cve_summary[:1000]}\n{csaf_summary[:1000]}\n\n"
         f"Return ONLY valid JSON with this exact structure:\n"
         f'{{\n'
+        f'  "pre_checks": {{\n'
+        f'    "os_compatibility": {{\n'
+        f'      "command": "<command to get OS name and version>",\n'
+        f'      "expected": "<expected OS version(s) or distribution required for patch>",\n'
+        f'      "description": "Ensure patch applies only to correct OS and version before execution."\n'
+        f'    }},\n'
+        f'    "package_dependency": {{\n'
+        f'      "command": "<command to check related or dependent packages>",\n'
+        f'      "description": "Verify all dependency packages are available and compatible before applying patch."\n'
+        f'    }},\n'
+        f'    "environment_validation": {{\n'
+        f'      "command": "<command to identify environment (dev/stage/prod)>",\n'
+        f'      "expected": "<expected environment(s) based on vulnerability data>",\n'
+        f'      "description": "Ensure this host belongs to an appropriate environment (e.g., RHEL 8 in prod)."\n'
+        f'    }}\n'
+        f'  }},\n'
         f'  "check_packages": {{\n'
         f'    "command": "<command to check installed package versions>",\n'
         f'    "description": "<brief description>"\n'
@@ -52,14 +68,21 @@ def planner_node(state):
         f'    "command": "<command to verify vulnerability is resolved>",\n'
         f'    "expected_result": "<what to expect if fixed>"\n'
         f'  }},\n'
+        f'  "rollback_plan": {{\n'
+        f'    "command": "<command to rollback or restore previous state if patch fails>",\n'
+        f'    "description": "Provide minimal rollback procedure to ensure system stability."\n'
+        f'  }},\n'
         f'  "production_report": {{\n'
-        f'    "template_fields": ["vuln_id", "patch_applied", "verification_status", "notes"],\n'
-        f'    "description": "<brief template description>"\n'
+        f'    "template_fields": ["vuln_id", "patch_applied", "verification_status", "notes", "os_validated", "env_validated"],\n'
+        f'    "description": "Template to document OS, environment, and package validation along with remediation status."\n'
         f'  }}\n'
         f'}}\n\n'
-        f"Keep it SHORT - only essential commands. Reference CVE/CSAF data instead of repeating details.\n"
-        f"Reply with ONLY the JSON object, no markdown, no explanations."
+        f"Ensure each command is OS-aware (e.g., use `cat /etc/os-release` for Linux). "
+        f"If the system OS or environment does not match the RHSA advisory, add a clear note in description. "
+        f"Reference CVE/CSAF data instead of repeating details. Keep commands short and directly actionable.\n"
+        f"Reply with ONLY the JSON object, no markdown or explanations."
     )
+
     
     try:
         resp = llm.invoke(prompt).content.strip()
@@ -90,7 +113,12 @@ def planner_node(state):
         output += f"\n---\n\n```json\n{json.dumps(plan, indent=2)}\n```\n"
         output += f"\nPlan saved to: `resources/plan.json`\n"
         
-        return {"output": output, "remediation_plan": plan}
+        return {
+            "output": output,
+            "remediation_plan": plan,
+            "cve_summary": cve_summary,
+            "csaf_summary": csaf_summary
+        }
         
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse JSON plan: {e}")

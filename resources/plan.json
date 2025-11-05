@@ -1,24 +1,47 @@
 {
+  "pre_checks": {
+    "os_compatibility": {
+      "command": "cat /etc/os-release | grep -i 'red hat enterprise linux 8'",
+      "expected": "Red Hat Enterprise Linux 8",
+      "description": "Ensure the system is running RHEL 8 as specified in the advisory before proceeding with the patch."
+    },
+    "package_dependency": {
+      "command": "dnf repoquery --requires python3-setuptools",
+      "description": "Verify all dependent packages for python3-setuptools are installed and available to ensure compatibility."
+    },
+    "environment_validation": {
+      "command": "hostnamectl | grep 'Operating System'",
+      "expected": "RHEL 8 production environment",
+      "description": "Ensure the patch is applied to the appropriate environment (e.g., production servers running RHEL 8)."
+    }
+  },
   "check_packages": {
-    "command": "rpm -q python-setuptools",
-    "description": "Check the installed version of python-setuptools to determine if it's vulnerable."
+    "command": "rpm -q python3-setuptools",
+    "description": "Check the current version of the python3-setuptools package installed on the system."
   },
   "apply_remediation": {
-    "command": "yum update python-setuptools",
+    "command": "dnf update python3-setuptools -y",
     "type": "update",
-    "description": "Update python-setuptools to the secure version provided in the RHSA advisory."
+    "description": "Update the python3-setuptools package to the fixed version provided in the advisory to remediate CVE-2025-47273."
   },
   "verify_fix": {
-    "command": "rpm -q python-setuptools",
-    "expected_result": "Version 78.1.1 or later installed."
+    "command": "rpm -q python3-setuptools",
+    "expected_result": "python3-setuptools-39.2.0-9.el8_10.noarch or higher",
+    "description": "Verify the installed version of python3-setuptools matches or exceeds the fixed version mentioned in the advisory."
+  },
+  "rollback_plan": {
+    "command": "dnf downgrade python3-setuptools -y",
+    "description": "Rollback to the previous version of python3-setuptools if the patch causes any issues."
   },
   "production_report": {
     "template_fields": [
       "vuln_id",
       "patch_applied",
       "verification_status",
-      "notes"
+      "notes",
+      "os_validated",
+      "env_validated"
     ],
-    "description": "Template for summarizing remediation actions and outcomes."
+    "description": "Use this template to record the vulnerability ID, patch application status, validation of OS and environment, and verification results for audit compliance."
   }
 }

@@ -16,7 +16,12 @@ DEFAULT_STATE: dict = {
     "rhsa_id": None,
     "cve_data": None,
     "csaf_data": None,
+    "cve_summary": None,
+    "csaf_summary": None,
     "jira_issues": None,
+    "remediation_plan": None,
+    "patcher_logs": None,
+    "patcher_errors": None,
 }
 
 
