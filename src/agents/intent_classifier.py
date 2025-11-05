@@ -11,13 +11,15 @@ def classify_intent(message: str) -> dict:
     prompt = (
         "Analyze the user's message and classify their intent.\n"
         "Possible intents: LIST_VULNS (when user wants to see vulnerabilities), "
-        "RESOLVE_VULN (when user wants to resolve a specific vulnerability), "
+        "ANALYZE_VULN (when user wants to analyze a specific vulnerability ID), "
+        "CREATE_JIRA_STORY (when user wants to create a JIRA story for a specific vulnerability ID), "
+        "FETCH_JIRA_STORY (when user wants to fetch a JIRA story for a specific vulnerability ID), "
         "HELP (when user asks for help, features, capabilities, or what the app can do), "
         "or OTHER (for any other request).\n"
-        "For RESOLVE_VULN intent, extract the Vuln ID number in the 'data' field.\n"
+        "For ANALYZE_VULN, CREATE_JIRA_STORY, FETCH_JIRA_STORY intent, extract the Vuln ID number in the 'data' field.\n"
         "Reply with ONLY a valid JSON object in this exact format:\n"
         '{"intent": "<intent>", "data": "<data>"}\n'
-        "For LIST_VULNS, HELP, or OTHER intents, set 'data' to empty string.\n"
+        "For LIST_VULNS, ANALYZE_VULN, CREATE_JIRA_STORY, FETCH_JIRA_STORY, HELP, or OTHER intents, set 'data' to empty string.\n"
         f"Message: '''{message}'''"
     )
     try:

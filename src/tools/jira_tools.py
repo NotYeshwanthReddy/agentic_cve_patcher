@@ -178,12 +178,12 @@ def update_story_with_vuln_data(story_key: str, vuln_data: Dict[str, Any], rhsa_
     return {"updated": True}
 
 
-def jira_update_node(state):
+def jira_create_node(state):
     """Update JIRA: find/create epic, create story if needed."""
     logger.info("Entering jira_update_node")
     vuln_data = state.get("vuln_data")
     if not vuln_data:
-        return {"output": state.get("output", "")}
+        return {"output": "No vulnerability data provided. Analyze the vulnerability first.\nExample: `Analyze Vuln ID 241573`"}
     
     app_code = str(vuln_data.get("App Code", "")).strip()
     app_name = str(vuln_data.get("App Name", "")).strip()

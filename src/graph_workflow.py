@@ -1,13 +1,13 @@
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
 from src.tools.ssh_client import ssh_node
-from src.tools.jira_tools import jira_update_node
+from src.tools.jira_tools import jira_create_node
 from src.utils.data_handler import sample_vulns
 from src.utils.logger import get_logger
 from src.utils.sqlite_checkpointer import get_checkpointer
 from src.state import GraphState
 from src.agents.intent_classifier import classify_intent
-from src.agents.vuln_resolver import resolve_vuln_node
+from src.agents.analyze_vulnerability import analyze_vuln_node
 
 load_dotenv()
 
@@ -25,7 +25,7 @@ def classify_intent_node(state):
 def list_vulns_node(state):
     logger.info("Entering list_vulns_node")
     items = sample_vulns(5)
-    output = "Vuln ID — Vuln Name\n{}\nWhich Vuln ID shall we resolve.?\nsample input: `Resolve Vuln ID 241573`".format("\n".join(items))
+    output = "Vuln ID — Vuln Name\n{}\nWhich Vuln ID shall we resolve.?\nsample input: `Analyze Vuln ID 241573`".format("\n".join(items))
     return {"output": output}
 
 
@@ -38,9 +38,9 @@ def helper_node(state):
 
 2. Analyze vulnerability by ID (example: `Analyze Vuln ID 241573`)
 
-3. Create JIRA story for resolution progress (example: `Create JIRA story for Vuln ID 241573`)
+3. Create JIRA story for resolution progress (example: `Create JIRA story for this vulnerability.`)
 
-4. fetch jira story, sub-task details and its status/progress (example: `Fetch JIRA story for Vuln ID 241573`)
+4. fetch jira story, sub-task details and its status/progress (example: `Fetch JIRA story status`)
 
 5. Query GraphDB (Gremlin API)
 
@@ -56,11 +56,17 @@ def helper_node(state):
     return {"output": help_message}
 
 
+def fetch_jira_node(state):
+    """Fetch JIRA story, sub-task details and its status/progress."""    
+    return {"output": "Fetching JIRA story, sub-task details and its status/progress."}
+
+
 graph = StateGraph(GraphState)
 graph.add_node("classify", classify_intent_node)
 graph.add_node("list_vulns", list_vulns_node)
-graph.add_node("resolve_vuln", resolve_vuln_node)
-graph.add_node("jira_update", jira_update_node)
+graph.add_node("analyze_vuln", analyze_vuln_node)
+graph.add_node("jira_create_node", jira_create_node)
+graph.add_node("fetch_jira_node", fetch_jira_node)
 graph.add_node("ssh", ssh_node)
 graph.add_node("helper", helper_node)
 
@@ -68,17 +74,20 @@ graph.add_edge(START, "classify")
 graph.add_conditional_edges("classify", 
                             lambda s: s.get("intent"), 
                             {"LIST_VULNS": "list_vulns",
-                             "RESOLVE_VULN": "resolve_vuln",
+                             "ANALYZE_VULN": "analyze_vuln",
+                             "CREATE_JIRA_STORY": "jira_create_node",
+                             "FETCH_JIRA_STORY": "fetch_jira_node",
                              "HELP": "helper",
                              "OTHER": "ssh"
                             })
-graph.add_edge("resolve_vuln", "jira_update")
-graph.add_edge("jira_update", END)
+graph.add_edge("analyze_vuln", END)
+graph.add_edge("jira_create_node", END)
+graph.add_edge("fetch_jira_node", END)
 graph.add_edge("list_vulns", END)
 graph.add_edge("helper", END)
 graph.add_edge("ssh", END)
 
 # Compile with SQLite checkpointer for state persistence
 checkpointer = get_checkpointer()
-# app = graph.compile(checkpointer=checkpointer)
-app = graph.compile()
+app = graph.compile(checkpointer=checkpointer)
+# app = graph.compile()
