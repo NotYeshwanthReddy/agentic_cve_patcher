@@ -1,6 +1,10 @@
-gradio
-langgraph
-langgraph-checkpoint-sqlite
-paramiko
-python-dotenv
-openai
+gradio==5.49.1
+gremlinpython==3.7.4
+jira==3.10.5
+langchain_openai==1.0.2
+langgraph==1.0.2
+langgraph_checkpoint==3.0.1
+pandas==2.3.3
+paramiko==4.0.0
+python-dotenv==1.2.1
+Requests==2.32.5

@@ -24,7 +24,7 @@ def get_data(query):
     return data
 
 
-def get_cve_data(RHSA_id:str) -> dict:
+def get_cve_data(RHSA_id:str) -> tuple:
     """
     Fetches CVE data for a given RHSA advisory ID.
     
@@ -32,11 +32,12 @@ def get_cve_data(RHSA_id:str) -> dict:
         RHSA_id (str): The Red Hat Security Advisory ID. [RHSA-2025:11036]
     
     Returns:
-        list of dict: Parsed JSON data from the API response.
+        tuple: (list of dict: Parsed JSON data from the API response, list of str: CVE IDs)
     """
     logger.info(f"Entering get_cve_data with RHSA_id: {RHSA_id}")
     data = get_data('/cve.json' + '?' + f'advisory={RHSA_id}')
     responses = []
+    cve_ids = []
 
     for cve in data:
         resource_url = cve['resource_url']
@@ -47,9 +48,21 @@ def get_cve_data(RHSA_id:str) -> dict:
             continue
         else:
             print(f"Successfully fetched data from {resource_url}")
+            cve_json = response.json()
             # Append the JSON response to the list
-            responses.append(response.json())
-    return responses
+            responses.append(cve_json)
+            
+            # Extract CVE ID from the JSON response
+            # CVE JSON contains a field called "name": "CVE-2025-47273"
+            cve_id = None
+            if isinstance(cve_json, dict):
+                cve_id = cve_json.get('name')
+            
+            if cve_id and cve_id not in cve_ids:
+                cve_ids.append(cve_id)
+                logger.info(f"Extracted CVE ID: {cve_id}")
+    
+    return responses, cve_ids
 
 
 def get_csaf_data(RHSA_id:str) -> dict:
@@ -70,13 +83,15 @@ def get_csaf_data(RHSA_id:str) -> dict:
         raise Exception(f'Invalid request; returned {response.status_code} for CSAF endpoint: {endpoint}')
     else:
         print(f"Successfully fetched data from {endpoint}")
+    
     return response.json()
 
 # example usage
 if __name__ == "__main__":
     # Replace with actual RHSA ID for testing
-    cve_data = get_cve_data("RHSA-2025:11036")
+    cve_data, cve_ids = get_cve_data("RHSA-2025:11036")
     print("CVE DATA:", cve_data, "\n\n")
+    print("CVE IDs:", cve_ids, "\n\n")
     # save CVE data to a file
     with open("./cve_data.json", "w") as f:
         json.dump(cve_data, f, indent=4)

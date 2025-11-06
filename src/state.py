@@ -11,6 +11,7 @@ class GraphState(TypedDict):
     rhsa_id: Optional[str]
     cve_data: Optional[dict]
     csaf_data: Optional[dict]
+    cve_ids: Optional[List[str]]  # List of CVE IDs extracted from CVE data
     cve_summary: Optional[str]  # Summary of CVE data
     csaf_summary: Optional[str]  # Summary of CSAF data
     jira_issues: Optional[Dict[str, Any]]  # Stores epic_key, story_key, and subtask_keys

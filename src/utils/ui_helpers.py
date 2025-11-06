@@ -14,6 +14,7 @@ DEFAULT_STATE: dict = {
     "output": "",
     "vuln_data": None,
     "rhsa_id": None,
+    "cve_ids": None,
     "cve_data": None,
     "csaf_data": None,
     "cve_summary": None,
