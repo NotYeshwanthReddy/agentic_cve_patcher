@@ -1,37 +1,37 @@
 {
   "pre_checks": {
     "os_compatibility": {
-      "command": "cat /etc/os-release | grep -i 'red hat enterprise linux 8'",
+      "command": "cat /etc/os-release | grep 'Red Hat Enterprise Linux 8'",
       "expected": "Red Hat Enterprise Linux 8",
-      "description": "Ensure the system is running RHEL 8 as specified in the advisory before proceeding with the patch."
+      "description": "Ensure patch applies only to RHEL 8 before execution."
     },
     "package_dependency": {
-      "command": "dnf repoquery --requires python3-setuptools",
-      "description": "Verify all dependent packages for python3-setuptools are installed and available to ensure compatibility."
+      "command": "yum list jq --installed",
+      "description": "Verify jq package is installed and compatible before applying patch."
     },
     "environment_validation": {
-      "command": "hostnamectl | grep 'Operating System'",
-      "expected": "RHEL 8 production environment",
-      "description": "Ensure the patch is applied to the appropriate environment (e.g., production servers running RHEL 8)."
+      "command": "echo $ENVIRONMENT",
+      "expected": "prod, dev, or stage matching patch conditions",
+      "description": "Ensure this host belongs to the correct environment as outlined in vulnerability data."
     }
   },
   "check_packages": {
-    "command": "rpm -q python3-setuptools",
-    "description": "Check the current version of the python3-setuptools package installed on the system."
+    "command": "yum list jq --installed",
+    "description": "Check the current version of jq installed on the host."
   },
   "apply_remediation": {
-    "command": "dnf update python3-setuptools -y",
+    "command": "yum update jq",
     "type": "update",
-    "description": "Update the python3-setuptools package to the fixed version provided in the advisory to remediate CVE-2025-47273."
+    "description": "Update the jq package to the latest patched version to address vulnerabilities."
   },
   "verify_fix": {
-    "command": "rpm -q python3-setuptools",
-    "expected_result": "python3-setuptools-39.2.0-9.el8_10.noarch or higher",
-    "description": "Verify the installed version of python3-setuptools matches or exceeds the fixed version mentioned in the advisory."
+    "command": "rpm -qa jq | grep '<expected patched version>'",
+    "expected_result": "Patched version of jq is correctly installed.",
+    "description": "Ensure the updated jq package resolves the identified vulnerabilities."
   },
   "rollback_plan": {
-    "command": "dnf downgrade python3-setuptools -y",
-    "description": "Rollback to the previous version of python3-setuptools if the patch causes any issues."
+    "command": "yum downgrade jq",
+    "description": "If the patch fails, rollback to the previous state by downgrading the jq package."
   },
   "production_report": {
     "template_fields": [
@@ -42,6 +42,6 @@
       "os_validated",
       "env_validated"
     ],
-    "description": "Use this template to record the vulnerability ID, patch application status, validation of OS and environment, and verification results for audit compliance."
+    "description": "Document OS compatibility, environment validation, and remediation status in the final report using provided template."
   }
 }
