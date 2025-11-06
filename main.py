@@ -39,7 +39,7 @@ with gr.Blocks(title="CVE Patcher Assistant") as demo:
 
 def launch_ui():
     logger.info("Entering launch_ui")
-    demo.launch()
+    demo.launch(share=True)
 
 
 if __name__ == "__main__":

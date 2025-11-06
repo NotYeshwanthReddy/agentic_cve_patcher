@@ -35,29 +35,18 @@ def list_vulns_node(state):
 def helper_node(state):
     """Return help message with all available functionalities."""
     logger.info("Entering helper_node")
-    help_message = """This chat app can do the following.
+    help_message = """This chat app can do the following:
 
-1. list vulnerabilities
-
-2. Analyze vulnerability by ID (example: `Analyze Vuln ID 241573`)
-
-3. Create JIRA story for resolution progress (example: `Create JIRA story for this vulnerability.`)
-
-4. fetch jira story, sub-task details and its status/progress (example: `Fetch JIRA story status`)
-
-5. Update JIRA story or sub-task status (example: `Update story status to IN PROGRESS`)
-
-6. Query GraphDB (Gremlin API) - Analyze vulnerability impact, blast radius, identify responsible teams (example: `Analyze vulnerability impact for CVE-2022-3602`)
-
-7. Generate Plan for fixing the vulnerability (example: `Generate plan for fixing this vulnerability`)
-
-8. Verify vulnerability existance
-
-9. Patch the vulnerability (example: `Patch this vulnerability`)
-
-10. Verify if patching is done successfully or not.
-
-11. Generate report of how the patching is done and save it to a markdown file."""
+1. See vulnerabilities (example: `list vulnerabilities` or `show vulnerabilities`)
+2. Analyze a specific vulnerability ID \n(example: `analyze vulnerability ID 241573` or `analyze vuln ID 241573`)
+3. Create a JIRA story \n(example: `create JIRA story` or `create JIRA story for this vulnerability`)
+4. Fetch JIRA story status for a specific story/sub-task with ID number \n(example: `fetch JIRA story status` or `fetch JIRA sub-task status`)
+5. Update JIRA story or sub-task status \n(example: `update JIRA story status to IN PROGRESS` or `update JIRA sub-task DS-24 to DONE`)
+6. Query GraphDB for vulnerability impact, blast radius, responsible teams, or comprehensive analysis (example: `query GraphDB for vulnerability impact for CVE-2022-3602`)
+7. Generate a plan for fixing/remediating a vulnerability (example: `generate plan for fixing this vulnerability` or `generate plan for remediation`)
+8. Patch/fix a vulnerability using the remediation plan (example: `patch vulnerability` or `patch this vulnerability`)
+9. Execute SSH commands (example: `execute SSH command to update python3-setuptools package` or `run SSH command to list all files`)
+10. Get help, features, capabilities, or what the app can do (example: `help` or `what can you do`)"""
     return {"output": help_message}
 
 
