@@ -149,7 +149,7 @@ def gremlin_node(state):
             return {"output": f"Unknown operation: {operation}"}
         
         formatted_output = format_gremlin_result(result_data, operation.replace("_", " ").title())
-        return {"output": formatted_output, "gremlin_result": result_data}
+        return {"output": formatted_output, "gremlin_result": result_data, "current_step": 3}
         
     except ValueError as e:
         return {"output": f"Configuration error: {str(e)}"}

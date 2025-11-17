@@ -117,7 +117,8 @@ def planner_node(state):
             "output": output,
             "remediation_plan": plan,
             "cve_summary": cve_summary,
-            "csaf_summary": csaf_summary
+            "csaf_summary": csaf_summary,
+            "current_step": 4
         }
         
     except json.JSONDecodeError as e:

@@ -158,6 +158,7 @@ def patcher_node(state):
     
     # Pre-checks
     pre_checks = plan.get("pre_checks", {})
+    current_step = 5  # system pre-checks
     for check_name, check_config in pre_checks.items():
         result = execute_and_analyze_step(f"pre_check_{check_name}", check_config, cve_summary, csaf_summary)
         patcher_logs.append(result["log"])
@@ -184,6 +185,11 @@ def patcher_node(state):
     
     for step_name, step_config in steps:
         if step_config.get("command"):
+            if step_name == "check_packages" or step_name == "apply_remediation":
+                current_step = 6  # patch
+            elif step_name == "verify_fix":
+                current_step = 7  # verify
+            
             result = execute_and_analyze_step(step_name, step_config, cve_summary, csaf_summary)
             patcher_logs.append(result["log"])
             final_command = result["log"]["attempts"][-1]["command"] if result["log"].get("attempts") else step_config.get("command", "")
@@ -218,9 +224,18 @@ def patcher_node(state):
             output_parts.append(f"- **{error['step']}**: {error['error']}\n")
             output_parts.append(f"  - Suggestion: {error['suggestion']}\n\n")
     
+    # Determine final step (report or end)
+    output_text = "".join(output_parts)
+    if "Execution Report" in output_text:
+        if not patcher_errors or len(patcher_errors) == 0:
+            current_step = 9  # end
+        else:
+            current_step = 8  # report
+    
     return {
-        "output": "".join(output_parts),
+        "output": output_text,
         "patcher_logs": patcher_logs,
-        "patcher_errors": patcher_errors
+        "patcher_errors": patcher_errors,
+        "current_step": current_step
     }
 

@@ -334,7 +334,7 @@ def jira_create_node(state):
     app_name = str(vuln_data.get("App Name", "")).strip()
     
     if not app_code:
-        return {"output": state.get("output", "") + "\nWarning: APP_CODE not found in vulnerability data."}
+        return {"output": "Warning: APP_CODE not found in vulnerability data."}
     
     client = get_jira_client()
     
@@ -400,7 +400,7 @@ def jira_create_node(state):
     }
     
     subtask_summary = f", {len(subtask_keys)} sub-task(s)" if subtask_keys else ""
-    output = state.get("output", "") + f"\nJIRA: Epic {epic_key}, Story {story_key}{subtask_summary} ready."
+    output = f"\nJIRA: Epic {epic_key}, Story {story_key}{subtask_summary} ready."
     
     return {
         "jira_issues": jira_issues,

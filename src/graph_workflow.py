@@ -29,7 +29,7 @@ def list_vulns_node(state):
     logger.info("Entering list_vulns_node")
     items = sample_vulns(5)
     output = "Vuln ID — Vuln Name\n{}\nWhich Vuln ID shall we resolve.?\nsample input: `Analyze Vuln ID 241573`".format("\n".join(items))
-    return {"output": output}
+    return {"output": output, "current_step": 1}
 
 
 def helper_node(state):

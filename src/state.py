@@ -18,3 +18,4 @@ class GraphState(TypedDict):
     remediation_plan: Optional[Dict[str, Any]]  # Stores the remediation plan JSON
     patcher_logs: Optional[List[Dict[str, Any]]]  # Logs from patcher execution
     patcher_errors: Optional[List[Dict[str, Any]]]  # Errors and suggestions from patcher
+    current_step: Optional[int]  # Current step in the workflow (1-9)

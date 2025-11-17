@@ -23,6 +23,7 @@ DEFAULT_STATE: dict = {
     "remediation_plan": None,
     "patcher_logs": None,
     "patcher_errors": None,
+    "current_step": 0,
 }
 
 
@@ -74,6 +75,135 @@ def format_state_display(state_dict):
     return ''.join(html_parts)
 
 
+def get_current_step(state: dict) -> int:
+    """Determine current step based on state. Returns step index (1-based)."""
+    # Prioritize saved current_step from state
+    saved_step = state.get("current_step", 0)
+    if saved_step and saved_step > 0:
+        return saved_step
+    
+    # Fallback to inference if current_step not set
+    intent = state.get("intent", "")
+    
+    # Step 1: start (list_vulns_node)
+    if intent == "LIST_VULNS":
+        return 1
+    
+    # Step 2: get_details (analyze_vuln_node)
+    if state.get("vuln_data"):
+        return 2
+    
+    # Step 3: impact/blast radius (gremlin_node)
+    if state.get("cve_data") or state.get("csaf_data"):
+        if not state.get("remediation_plan"):
+            return 3
+    
+    # Step 4: Plan Generation (planner_node)
+    if state.get("remediation_plan") and not state.get("patcher_logs"):
+        return 4
+    
+    # Steps 5-8: patcher_node stages
+    patcher_logs = state.get("patcher_logs", [])
+    if patcher_logs:
+        # Determine stage based on log step names
+        all_steps = [log.get("step", "") for log in patcher_logs]
+        has_pre_check = any("pre_check" in s for s in all_steps)
+        has_check_packages = any("check_packages" in s for s in all_steps)
+        has_apply_remediation = any("apply_remediation" in s for s in all_steps)
+        has_verify_fix = any("verify_fix" in s for s in all_steps)
+        
+        if has_verify_fix:
+            # Check if output contains report
+            output = state.get("output", "")
+            if "Execution Report" in output:
+                # Check if we're at end (no errors or all complete)
+                patcher_errors = state.get("patcher_errors", [])
+                if not patcher_errors or len(patcher_errors) == 0:
+                    return 9  # end
+                return 8  # report
+            return 7  # verify
+        elif has_apply_remediation:
+            return 6  # patch
+        elif has_check_packages:
+            return 6  # patch
+        elif has_pre_check:
+            return 5  # system pre-checks
+        else:
+            return 5  # default to pre-checks
+    
+    return 0  # No step active
+
+
+def render_stepper(current_step: int) -> str:
+    """Render horizontal stepper HTML."""
+    STEPS = ["start", "get_details", "impact/blast radius", "Plan Generation", 
+             "system pre-checks", "patch", "verify", "report", "end"]
+    
+    html = """
+    <style>
+        .stepper-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin: 20px auto;
+            position: relative;
+            padding: 10px 0;
+        }
+        .stepper-container::before {
+            content: "";
+            position: absolute;
+            top: 22px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #ccc;
+            z-index: 1;
+        }
+        .step {
+            text-align: center;
+            flex: 1;
+            z-index: 2;
+        }
+        .circle {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            background-color: #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin: auto;
+        }
+        .active .circle {
+            background-color: #1f6feb;
+            color: white;
+            border-color: #1f6feb;
+        }
+        .label {
+            margin-top: 7px;
+            font-size: 11px;
+            word-break: break-word;
+        }
+    </style>
+    <div class="stepper-container">
+    """
+    
+    for i, step in enumerate(STEPS, start=1):
+        active_class = "active" if i <= current_step else ""
+        html += f"""
+        <div class="step {active_class}">
+            <div class="circle">{i}</div>
+            <div class="label">{step}</div>
+        </div>
+        """
+    
+    html += "</div>"
+    return html
+
+
 def chat_fn(message, history):
     """Process message and return output along with formatted state data."""
     logger.info(f"Entering chat_fn with message: {message[:50] if message else 'None'}...")
@@ -101,5 +231,8 @@ def chat_fn(message, history):
     
     output = complete_state.get("output") or ""
     state_display = format_state_display(complete_state)
-    return output, state_display
+    current_step = get_current_step(complete_state)
+    stepper_html = render_stepper(current_step)
+    
+    return output, state_display, stepper_html
 
