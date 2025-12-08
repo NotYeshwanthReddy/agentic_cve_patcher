@@ -49,15 +49,16 @@ with gr.Blocks(css="""
 
     with gr.Row():
         # ----- LEFT SIDEBAR -----
-        history_list = gr.Radio(
-            label="Conversation History",
-            choices=list(conversation_history.keys()),
-            interactive=True,
-            elem_classes="vertical-radio",
-        )
+        with gr.Column(scale=1):
+            history_list = gr.Radio(
+                label="Conversation History",
+                choices=list(conversation_history.keys()),
+                interactive=True,
+                elem_classes="vertical-radio",
+            )
 
         # ----- CHAT UI -----
-        with gr.Column():
+        with gr.Column(scale=9):
             chatbot = gr.Chatbot(label="Chat Window")
             msg = gr.Textbox(label="Type a message")
             send_btn = gr.Button("Send")
