@@ -34,7 +34,7 @@ def repl():
             # state_display is HTML; print a short preview by stripping tags naively
             import re
             text_preview = re.sub(r'<[^>]+>', '', state_display)
-            print(text_preview[:1000])
+            print(text_preview)
             print("\n-----------------------\n")
     except KeyboardInterrupt:
         print("\nInterrupted. Exiting.")
