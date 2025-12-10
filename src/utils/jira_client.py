@@ -48,6 +48,51 @@ class JiraClient:
             fields["description"] = description
         issue = self.jira.create_issue(fields=fields)
         return {"key": issue.key, "id": issue.id}
+
+    def get_issue_type_fields(self, issuetype_name: str = "Story") -> Dict[str, Any]:
+        """Return a mapping of field_id -> field metadata for the given issue type.
+
+        This method is tolerant to changes in python-jira / JIRA server versions. It
+        first attempts to call `createmeta` (older API). If that fails (newer JIRA
+        versions), it falls back to `project_issue_types` / `project_issue_fields`.
+        The returned structure is normalized so callers can treat it like the
+        `projects[0].issuetypes[0].fields` mapping returned by `createmeta`.
+        """
+        try:
+            meta = self.jira.createmeta(projectKeys=self.project_key, issuetypeNames=issuetype_name, expand="projects.issuetypes.fields")
+            if meta and meta.get("projects"):
+                return meta["projects"][0]["issuetypes"][0]["fields"]
+        except Exception as e:
+            logger.info(f"createmeta failed, trying fallback APIs: {e}")
+
+        # Fallback for newer JIRA / python-jira versions
+        try:
+            # Get issue types for the project (list of dicts)
+            types = None
+            if hasattr(self.jira, "project_issue_types"):
+                types = self.jira.project_issue_types(self.project_key)
+
+            # Get project fields (may return dict or list)
+            fields = None
+            if hasattr(self.jira, "project_issue_fields"):
+                fields = self.jira.project_issue_fields(self.project_key)
+
+            # Normalize fields into mapping: field_id -> field_data
+            if isinstance(fields, dict):
+                return fields
+            elif isinstance(fields, list):
+                mapping: Dict[str, Any] = {}
+                for f in fields:
+                    # field id may be under different keys depending on API shape
+                    fid = f.get("id") or f.get("key") or f.get("fieldId") or f.get("name")
+                    if fid:
+                        mapping[fid] = f
+                return mapping
+        except Exception as e2:
+            logger.error(f"Fallback to project_issue_fields failed: {e2}")
+
+        # As a last resort return empty mapping
+        return {}
     
     def create_story(self, epic_key: str, summary: str, description: Optional[str] = None, 
                      vuln_data: Optional[Dict] = None, custom_fields: Optional[Dict] = None) -> Dict:
@@ -70,23 +115,21 @@ class JiraClient:
         # Try to find Epic Link field before creation
         epic_link_field_id = None
         try:
-            meta = self.jira.createmeta(projectKeys=self.project_key, issuetypeNames="Story", expand="projects.issuetypes.fields")
-            if meta and meta.get("projects"):
-                available_fields = meta["projects"][0]["issuetypes"][0]["fields"]
-                # Look for Epic Link field by schema custom type (most reliable)
-                for fid, fdata in available_fields.items():
-                    field_schema = fdata.get("schema", {})
-                    schema_custom = field_schema.get("custom", "")
-                    field_name = fdata.get("name", "").lower()
-                    
-                    # Check for GreenHopper/JIRA Agile Epic Link field
-                    if schema_custom == "com.pyxis.greenhopper.jira:gh-epic-link":
-                        epic_link_field_id = fid
-                        break
-                    # Also check by name as fallback
-                    elif "epic link" in field_name and schema_custom.startswith("com."):
-                        epic_link_field_id = fid
-                        break
+            available_fields = self.get_issue_type_fields("Story")
+            # Look for Epic Link field by schema custom type (most reliable)
+            for fid, fdata in available_fields.items():
+                field_schema = fdata.get("schema", {})
+                schema_custom = field_schema.get("custom", "")
+                field_name = fdata.get("name", "").lower()
+
+                # Check for GreenHopper/JIRA Agile Epic Link field
+                if schema_custom == "com.pyxis.greenhopper.jira:gh-epic-link":
+                    epic_link_field_id = fid
+                    break
+                # Also check by name as fallback
+                elif "epic link" in field_name and schema_custom.startswith("com."):
+                    epic_link_field_id = fid
+                    break
         except Exception as e:
             print(f"Warning: Could not find Epic Link field: {e}")
         
@@ -279,17 +322,15 @@ if __name__ == "__main__":
         
         fields = {"summary": summary, "description": description}
         
-        # Get field metadata and map custom fields
-        meta = client.jira.createmeta(projectKeys=client.project_key, issuetypeNames="Story", expand="projects.issuetypes.fields")
-        if meta and meta.get("projects"):
-            available_fields = meta["projects"][0]["issuetypes"][0]["fields"]
-            
+        # Get field metadata and map custom fields (compatible helper)
+        available_fields = client.get_issue_type_fields("Story")
+        if available_fields:
             for field_id, field_data in available_fields.items():
                 field_name = field_data.get("name", "")
                 if field_name in props:
                     value = props[field_name]
                     field_type = field_data.get("schema", {}).get("type", "")
-                    
+
                     if field_type == "date":
                         from datetime import datetime
                         fields[field_id] = datetime.strptime(value, "%m/%d/%Y").strftime("%Y-%m-%d")

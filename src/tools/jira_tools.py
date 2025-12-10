@@ -158,20 +158,19 @@ def update_story_with_vuln_data(story_key: str, vuln_data: Dict[str, Any], rhsa_
     logger.info(f"Entering update_story_with_vuln_data for story_key: {story_key}")
     client = get_jira_client()
     issue = client.jira.issue(story_key)
-    
-    meta = client.jira.createmeta(projectKeys=client.project_key, issuetypeNames="Story", expand="projects.issuetypes.fields")
-    
-    if meta and meta.get("projects"):
-        available_fields = meta["projects"][0]["issuetypes"][0]["fields"]
+    available_fields = client.get_issue_type_fields("Story")
+    fields: Dict[str, Any] = {}
+
+    if available_fields:
         fields = prepare_custom_fields(vuln_data, available_fields)
-        
+
         # Add RHSA ID if present
         if rhsa_id:
             for field_id, field_data in available_fields.items():
                 if "rhsa" in field_data.get("name", "").lower():
                     fields[field_id] = rhsa_id
                     break
-        
+
         if fields:
             issue.update(fields=fields)
     
@@ -361,10 +360,10 @@ def jira_create_node(state):
         story_summary = f"Patch for Vuln ID:{vuln_id} | Asset Name:{asset_name} | Vuln Name:{vuln_name}"
         
         # Prepare custom fields before creating story
-        meta = client.jira.createmeta(projectKeys=client.project_key, issuetypeNames="Story", expand="projects.issuetypes.fields")
+        # Use compatibility helper to get fields for the Story issue type
+        available_fields = client.get_issue_type_fields("Story")
         custom_fields = {}
-        if meta and meta.get("projects"):
-            available_fields = meta["projects"][0]["issuetypes"][0]["fields"]
+        if available_fields:
             custom_fields = prepare_custom_fields(vuln_data, available_fields)
         
         # Create story with custom fields
@@ -375,9 +374,8 @@ def jira_create_node(state):
         if story_key:
             rhsa_id = state.get("rhsa_id")
             if rhsa_id:
-                meta = client.jira.createmeta(projectKeys=client.project_key, issuetypeNames="Story", expand="projects.issuetypes.fields")
-                if meta and meta.get("projects"):
-                    available_fields = meta["projects"][0]["issuetypes"][0]["fields"]
+                available_fields = client.get_issue_type_fields("Story")
+                if available_fields:
                     issue = client.jira.issue(story_key)
                     for field_id, field_data in available_fields.items():
                         if "rhsa" in field_data.get("name", "").lower():
