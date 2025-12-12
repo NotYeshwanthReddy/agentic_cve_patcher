@@ -19,12 +19,13 @@ def classify_intent(message: str) -> dict:
         "GENERATE_PLAN (when user wants to generate a plan for fixing/remediating a vulnerability), "
         "PATCH_VULN (when user wants to patch/fix a vulnerability using the remediation plan), "
         "SSH (when user wants to execute a SSH command), "
+        "ADD_DETAILS (when user wants to provide additional details or information like CVE IDs, application paths, package paths, remediation plans, etc.), "
         "HELP (when user asks for help, features, capabilities, or what the app can do), "
         "or OTHER (for any other request).\n"
         "For ANALYZE_VULN intent, extract the Vuln ID number in the 'data' field.\n"
         "Reply with ONLY a valid JSON object in this exact format:\n"
         '{"intent": "<intent>", "data": "<data>"}\n'
-        "For LIST_VULNS, CREATE_JIRA_STORY, FETCH_JIRA_STORY, UPDATE_JIRA_STORY, QUERY_GRAPHDB, GENERATE_PLAN, PATCH_VULN, SSH, HELP, or OTHER intents, set 'data' to empty string.\n"
+        "For LIST_VULNS, CREATE_JIRA_STORY, FETCH_JIRA_STORY, UPDATE_JIRA_STORY, QUERY_GRAPHDB, GENERATE_PLAN, PATCH_VULN, SSH, ADD_DETAILS, HELP, or OTHER intents, set 'data' to empty string.\n"
         f"Message: '''{message}'''"
     )
     try:

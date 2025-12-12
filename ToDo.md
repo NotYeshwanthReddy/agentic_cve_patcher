@@ -1,16 +1,26 @@
-Memory to sqlite.
-    - needs testing
+Local CVE DB
+    - create a folder with all the CVE json files
+    - add a tool to fetch CVE from the local db if RHSA ID and internet access is not present (get CVE ids from additional_info state var).
 
 JIRA 
-    - while resolving new vulnerability in same chat, it's overwriting story details.
-    - task status update (backlog, In-progress, Done)
+    - reconnect to old JIRA tasks using taskID/sub-task ID.
 
-Workflow Design: (To be decided)
+logging
+    - write logs to a file
+    - log state variables, chat_history, input, output, processing steps, at every turn in the chat.
+
+input_info
+    - Add a state variable called additional_info
+    - Accept the info provided by the user through chat. Utilize it during workflow generation.
+
+Memory to sqlite.
+    - needs testing in RBC Env
+
+Workflow Design: (To be trained from SME workflow logs)
     - Identify the vulnerability in the system. (using package name from Vuln_Name, and ssh commands to check if its really there.)
     - Plan Creation
     - Patching Process
     - Verification
-
 
 
 Side problems:

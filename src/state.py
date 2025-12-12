@@ -19,3 +19,4 @@ class GraphState(TypedDict):
     patcher_logs: Optional[List[Dict[str, Any]]]  # Logs from patcher execution
     patcher_errors: Optional[List[Dict[str, Any]]]  # Errors and suggestions from patcher
     current_step: Optional[int]  # Current step in the workflow (1-9)
+    additional_info: Optional[str]  # Additional information provided by the user (e.g. application path, package path, system details, etc.)

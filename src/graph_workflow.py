@@ -11,6 +11,7 @@ from src.utils.sqlite_checkpointer import get_checkpointer
 from src.state import GraphState
 from src.agents.intent_classifier import classify_intent
 from src.agents.analyze_vulnerability import analyze_vuln_node
+from src.agents.add_details import add_details_node
 
 load_dotenv()
 
@@ -46,7 +47,8 @@ def helper_node(state):
 7. Generate a plan for fixing/remediating a vulnerability (example: `generate plan for fixing this vulnerability` or `generate plan for remediation`)
 8. Patch/fix a vulnerability using the remediation plan (example: `patch vulnerability` or `patch this vulnerability`)
 9. Execute SSH commands (example: `execute SSH command to update python3-setuptools package` or `run SSH command to list all files`)
-10. Get help, features, capabilities, or what the app can do (example: `help` or `what can you do`)"""
+10. Add additional details or information (example: `below are some additional details. Please add them to your state variables. CVE-2025-47273, CVE-2025-47222` or `below are some additional details. Application path: /home/app/SHIRE` or `update the plan to following` with JSON remediation plan)
+11. Get help, features, capabilities, or what the app can do (example: `help` or `what can you do`)"""
     return {"output": help_message}
 
 
@@ -63,6 +65,7 @@ graph.add_node("planner", planner_node)
 graph.add_node("patcher", patcher_node)
 graph.add_node("ssh", ssh_node)
 graph.add_node("helper", helper_node)
+graph.add_node("add_details", add_details_node)
 
 graph.add_edge(START, "classify")
 graph.add_conditional_edges("classify", 
@@ -76,6 +79,7 @@ graph.add_conditional_edges("classify",
                              "GENERATE_PLAN": "planner",
                              "PATCH_VULN": "patcher",
                              "SSH": "ssh",
+                             "ADD_DETAILS": "add_details",
                              "HELP": "helper",
                              "OTHER": "helper"
                             })
@@ -89,6 +93,7 @@ graph.add_edge("patcher", END)
 graph.add_edge("list_vulns", END)
 graph.add_edge("helper", END)
 graph.add_edge("ssh", END)
+graph.add_edge("add_details", END)
 
 # Compile with SQLite checkpointer for state persistence
 checkpointer = get_checkpointer()

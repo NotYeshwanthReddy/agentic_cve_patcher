@@ -24,6 +24,7 @@ DEFAULT_STATE: dict = {
     "patcher_logs": None,
     "patcher_errors": None,
     "current_step": 0,
+    "additional_info": None,
 }
 
 
