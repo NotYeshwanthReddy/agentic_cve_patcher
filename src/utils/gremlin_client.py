@@ -8,7 +8,11 @@
 from typing import List, Dict, Any, Optional
 from gremlin_python.driver import client, serializer
 from dotenv import load_dotenv
+from src.utils.logger import get_logger
+
 load_dotenv()
+
+logger = get_logger(__name__)
 
 
 class GremlinClient:
@@ -19,6 +23,7 @@ class GremlinClient:
         graph: str,
         primary_key: str,
     ):
+        logger.info(f"Initializing GremlinClient for database: {database}, graph: {graph}")
         self.g = client.Client(
             url=endpoint,
             traversal_source="g",
@@ -26,12 +31,20 @@ class GremlinClient:
             password=primary_key,
             message_serializer=serializer.GraphSONSerializersV2d0()
         )
+        logger.info("GremlinClient initialized successfully")
 
     # ------------------------
     # low-level helpers
     # ------------------------
     def _q(self, query: str, **bindings) -> List[Any]:
-        return self.g.submit(query, bindings=bindings).all().result()
+        logger.debug(f"Executing Gremlin query: {query[:100]}...")
+        try:
+            result = self.g.submit(query, bindings=bindings).all().result()
+            logger.debug(f"Query executed successfully, returned {len(result)} results")
+            return result
+        except Exception as e:
+            logger.error(f"Error executing Gremlin query: {e}")
+            raise
 
     def _ids(self, it: List[Any]) -> List[str]:
         # Cosmos returns GraphSON; ids may already be strings
@@ -58,6 +71,7 @@ class GremlinClient:
     # 1) analyzing vulnerability impact
     # ------------------------
     def analyze_vulnerability_impact(self, cve_id: str, hops: int = 3) -> Dict[str, Any]:
+        logger.info(f"Analyzing vulnerability impact for CVE: {cve_id} with {hops} hops")
         # repeat().emit().until(loops()==hops) — Cosmos-friendly
         q = f"""
         g.V().has('Vulnerability','cve_id',cve).as('v').
@@ -75,6 +89,7 @@ class GremlinClient:
         """
         res = self._q(q, cve=cve_id)
         if not res:
+            logger.warning(f"No results found for CVE: {cve_id}")
             return {"cve_id": cve_id, "packages": [], "hosts": [], "applications": [], "services": [], "downstream_services": [], "counts": {}}
         r = res[0]
         out = {
@@ -86,12 +101,14 @@ class GremlinClient:
             "downstream_services": r["down"],
         }
         out["counts"] = {k: len(out[k]) for k in ["packages","hosts","applications","services","downstream_services"]}
+        logger.info(f"Vulnerability impact analysis complete for {cve_id}: {out['counts']}")
         return out
 
     # ------------------------
     # 2) identifying blast radius
     # ------------------------
     def blast_radius_by_hosts(self, host_ids: List[str], hops: int = 3) -> Dict[str, Any]:
+        logger.info(f"Calculating blast radius for {len(host_ids)} hosts with {hops} hops")
         q = f"""
         g.V().hasId(within(hids)).dedup().aggregate('hosts').
           select('hosts').unfold().out('HOSTS').dedup().aggregate('apps').
@@ -121,6 +138,7 @@ class GremlinClient:
         return out
 
     def blast_radius_by_apps(self, app_ids: List[str], hops: int = 3) -> Dict[str, Any]:
+        logger.info(f"Calculating blast radius for {len(app_ids)} apps with {hops} hops")
         q = f"""
         g.V().hasId(within(aids)).dedup().aggregate('apps').
           select('apps').unfold().out('DEPLOYS').dedup().aggregate('svcs').
@@ -203,7 +221,7 @@ class GremlinClient:
         
         try:
             # Step 1: Run vulnerability impact analysis
-            print(f"Analyzing vulnerability impact for {cve_id}...")
+            logger.info(f"Starting comprehensive analysis for CVE: {cve_id}")
             impact_analysis = self.analyze_vulnerability_impact(cve_id, hops)
             result["vulnerability_impact"] = impact_analysis
             
@@ -212,60 +230,61 @@ class GremlinClient:
             
             result["summary"]["total_affected_hosts"] = len(affected_hosts)
             result["summary"]["total_affected_apps"] = len(affected_apps)
+            logger.info(f"Found {len(affected_hosts)} affected hosts and {len(affected_apps)} affected apps")
             
             # Step 2: Calculate blast radius for each host individually
-            print(f"Calculating blast radius for {len(affected_hosts)} hosts...")
+            logger.info(f"Calculating blast radius for {len(affected_hosts)} hosts...")
             for host_id in affected_hosts:
                 try:
                     host_blast_radius = self.blast_radius_by_hosts([host_id], hops)
                     result["host_blast_radius"][host_id] = host_blast_radius
                 except Exception as e:
-                    print(f"Error calculating blast radius for host {host_id}: {e}")
+                    logger.error(f"Error calculating blast radius for host {host_id}: {e}")
                     result["host_blast_radius"][host_id] = {"error": str(e)}
             
             # Step 3: Calculate blast radius for each app individually
-            print(f"Calculating blast radius for {len(affected_apps)} applications...")
+            logger.info(f"Calculating blast radius for {len(affected_apps)} applications...")
             for app_id in affected_apps:
                 try:
                     app_blast_radius = self.blast_radius_by_apps([app_id], hops)
                     result["app_blast_radius"][app_id] = app_blast_radius
                 except Exception as e:
-                    print(f"Error calculating blast radius for app {app_id}: {e}")
+                    logger.error(f"Error calculating blast radius for app {app_id}: {e}")
                     result["app_blast_radius"][app_id] = {"error": str(e)}
             
             # Step 4: Identify teams responsible for each host
-            print(f"Identifying teams for {len(affected_hosts)} hosts...")
+            logger.info(f"Identifying teams for {len(affected_hosts)} hosts...")
             for host_id in affected_hosts:
                 try:
                     teams = self.team_for_host(host_id)
                     result["host_team_mapping"][host_id] = teams
                     result["summary"]["unique_teams"].update(teams)
                 except Exception as e:
-                    print(f"Error identifying teams for host {host_id}: {e}")
+                    logger.error(f"Error identifying teams for host {host_id}: {e}")
                     result["host_team_mapping"][host_id] = {"error": str(e)}
             
             # Step 5: Identify teams responsible for each app
-            print(f"Identifying teams for {len(affected_apps)} applications...")
+            logger.info(f"Identifying teams for {len(affected_apps)} applications...")
             for app_id in affected_apps:
                 try:
                     teams = self.team_for_app(app_id)
                     result["app_team_mapping"][app_id] = teams
                     result["summary"]["unique_teams"].update(teams)
                 except Exception as e:
-                    print(f"Error identifying teams for app {app_id}: {e}")
+                    logger.error(f"Error identifying teams for app {app_id}: {e}")
                     result["app_team_mapping"][app_id] = {"error": str(e)}
             
             # Finalize summary
             result["summary"]["total_responsible_teams"] = len(result["summary"]["unique_teams"])
             result["summary"]["unique_teams"] = list(result["summary"]["unique_teams"])
             
-            print(f"Analysis complete for {cve_id}")
-            print(f"Summary: {result['summary']['total_affected_hosts']} hosts, "
-                  f"{result['summary']['total_affected_apps']} apps, "
-                  f"{result['summary']['total_responsible_teams']} unique teams")
+            logger.info(f"Comprehensive analysis complete for {cve_id}: "
+                       f"{result['summary']['total_affected_hosts']} hosts, "
+                       f"{result['summary']['total_affected_apps']} apps, "
+                       f"{result['summary']['total_responsible_teams']} unique teams")
             
         except Exception as e:
-            print(f"Error in comprehensive analysis for {cve_id}: {e}")
+            logger.error(f"Error in comprehensive analysis for {cve_id}: {e}")
             result["error"] = str(e)
         
         return result
