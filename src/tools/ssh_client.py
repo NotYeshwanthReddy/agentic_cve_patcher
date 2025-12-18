@@ -21,12 +21,16 @@ class SSHClient:
         if self.client is None:
             self.client = paramiko.SSHClient()
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            logger.info(f"Connecting to {self.host} as {self.user}")
             self.client.connect(self.host, username=self.user, password=self.password)
+            logger.info("Connected to the server successfully")
 
     def run(self, command):
         logger.info(f"Entering SSHClient.run with command: {command[:50]}...")
         self.connect()
+        logger.info(f"Executing command: {command}")
         stdin, stdout, stderr = self.client.exec_command(command)
+        logger.info(f"SSHClient.run Command executed successfully")
         output = stdout.read().decode().strip()
         error = stderr.read().decode().strip()
         logger.info(f"SSHClient.run output: {output}")

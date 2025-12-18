@@ -16,6 +16,7 @@ def planner_node(state):
     cve_data = state.get("cve_data")
     csaf_data = state.get("csaf_data")
     rhsa_id = state.get("rhsa_id")
+    additional_info = state.get("additional_info")
     
     if not vuln_data:
         return {"output": "No vulnerability data found. Please analyze the vulnerability first.\nExample: `Analyze Vuln ID 241573`"}
@@ -30,13 +31,19 @@ def planner_node(state):
     cve_summary = llm.invoke(f"Summarize the CVE data and do not miss any important details: {cve_data}").content.strip() if cve_data else "Not available"
     csaf_summary = llm.invoke(f"Summarize the CSAF data and do not miss any important details: {csaf_data}").content.strip() if csaf_data else "Not available"
     
+    # Build additional info section for prompt
+    additional_info_section = ""
+    if additional_info:
+        additional_info_section = f"\n**CRITICAL SME Information (MUST be carefully considered in plan):**\n{additional_info}\n"
+    
     # Generate concise plan using LLM in JSON format
     prompt = (
         f"Generate a DETAILED but CONCISE remediation plan in JSON format for agents to fix:\n"
         f"Vulnerability ID: {vuln_id}\n"
         f"Vulnerability Name: {vuln_name}\n"
         f"RHSA ID: {rhsa_id or 'Not available'}\n\n"
-        f"Key CVE/CSAF details (full data available in state):\n{cve_summary[:1000]}\n{csaf_summary[:1000]}\n\n"
+        f"Key CVE/CSAF details (full data available in state):\n{cve_summary[:1000]}\n{csaf_summary[:1000]}\n"
+        f"{additional_info_section}\n"
         f"Return ONLY valid JSON with this exact structure:\n"
         f'{{\n'
         f'  "pre_checks": {{\n'
@@ -80,6 +87,8 @@ def planner_node(state):
         f"Ensure each command is OS-aware (e.g., use `cat /etc/os-release` for Linux). "
         f"If the system OS or environment does not match the RHSA advisory, add a clear note in description. "
         f"Reference CVE/CSAF data instead of repeating details. Keep commands short and directly actionable.\n"
+        f"**IMPORTANT:** Carefully consider all provided information including CVE summary, CSAF summary, and any SME-provided additional_info when generating the plan. "
+        f"The additional_info contains crucial context that must be incorporated into the remediation steps.\n"
         f"Reply with ONLY the JSON object, no markdown or explanations."
     )
 
