@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env_databricks
 .envrc
 .venv
 env/
@@ -214,3 +215,4 @@ resources/plan.json
 data/
 *.db
 *.db-journal
+resources/cve_db/

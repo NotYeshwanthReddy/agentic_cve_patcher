@@ -5,7 +5,8 @@ from src.tools.jira_tools import jira_create_node, jira_fetch_node, jira_update_
 from src.tools.gremlin_tools import gremlin_node
 from src.tools.planner_tools import planner_node
 from src.tools.patcher_tools import patcher_node
-from src.utils.data_handler import sample_vulns
+from src.tools.cve_data_tool import cve_data_tool_node
+from src.utils.data_handler import list_vulns_node
 from src.utils.logger import get_logger
 from src.utils.sqlite_checkpointer import get_checkpointer
 from src.state import GraphState
@@ -25,12 +26,6 @@ def classify_intent_node(state):
     result = classify_intent(user_input)
     return {"intent": result["intent"], "intent_data": result["data"]}
 
-
-def list_vulns_node(state):
-    logger.info("Entering list_vulns_node")
-    items = sample_vulns(5)
-    output = "Vuln ID — Vuln Name\n{}\nWhich Vuln ID shall we resolve.?\nsample input: `Analyze Vuln ID 241573`".format("\n".join(items))
-    return {"output": output, "current_step": 1}
 
 
 def helper_node(state):
@@ -57,6 +52,7 @@ graph = StateGraph(GraphState)
 graph.add_node("classify", classify_intent_node)
 graph.add_node("list_vulns", list_vulns_node)
 graph.add_node("analyze_vuln", analyze_vuln_node)
+graph.add_node("cve_data_tool", cve_data_tool_node)
 graph.add_node("jira_create_node", jira_create_node)
 graph.add_node("jira_fetch_node", jira_fetch_node)
 graph.add_node("jira_update_node", jira_update_node)
@@ -83,7 +79,8 @@ graph.add_conditional_edges("classify",
                              "HELP": "helper",
                              "OTHER": "helper"
                             })
-graph.add_edge("analyze_vuln", END)
+graph.add_edge("analyze_vuln", "cve_data_tool")
+graph.add_edge("cve_data_tool", END)
 graph.add_edge("jira_create_node", END)
 graph.add_edge("jira_fetch_node", END)
 graph.add_edge("jira_update_node", END)

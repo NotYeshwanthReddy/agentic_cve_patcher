@@ -11,6 +11,13 @@ logger = get_logger(__name__)
 CSV_PATH = os.getenv("VULN_DATA_PATH", "resources/vuln_data.csv")
 
 
+def list_vulns_node(state):
+    logger.info("Entering list_vulns_node")
+    items = sample_vulns()
+    output = "Vuln ID — Vuln Name\n{}\nWhich Vuln ID shall we resolve.?\nsample input: `Analyze Vuln ID 241573`".format("\n".join(items))
+    return {"output": output, "current_step": 1}
+
+
 def sample_vulns(n=5):
     """Return n random vulnerabilities as 'Vuln ID — Vuln Name' strings.
 
@@ -48,4 +55,4 @@ def get_vuln_by_id(vuln_id: str) -> dict:
     return match.iloc[0].to_dict()
 
 
-__all__ = ["sample_vulns", "get_vuln_by_id"]
+__all__ = ["list_vulns_node", "sample_vulns", "get_vuln_by_id"]
